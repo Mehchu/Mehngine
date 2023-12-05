@@ -86,18 +86,6 @@ class Board:
             if 2 ** square & blackPieces != 0:
                 eval += pieceValue[self.determinePieceOnSquare(square)]
             
-        '''
-        while depth > 0:
-            for move in self.generateMoves():
-                searchBoard = self
-                searchBoard.makeMove()
-                searchEval = searchBoard.evaluate(depth - 1)[0]
-                
-                if searchEval > eval:
-                    eval = searchEval
-                    best_move = move
-                
-        '''
         return eval
     
     def minimax(self, depth, maximizingPlayer):
@@ -112,7 +100,7 @@ class Board:
             for i in range(NUMBER_OF_BITBOARDS):
                 searchBoard.bitboards[i] = flipBoard(searchBoard.bitboards[i])
             
-            for move in searchBoard.generateMoves(): # Fix output of generateMoves
+            for move in searchBoard.generateAllLegalMoves(): # Fix output of generateMoves
                 searchBoard.makeMove(move)
                 value = max(value, searchBoard.minimax(depth - 1, False))
                 
@@ -124,12 +112,11 @@ class Board:
             for i in range(NUMBER_OF_BITBOARDS): # Make into method for class?
                 searchBoard.bitboards[i] = flipBoard(searchBoard.bitboards[i])
                 
-            for move in searchBoard.generateMoves(): # Fix output of generateMoves
+            for move in searchBoard.generateAllLegalMoves(): # Fix output of generateMoves
                 searchBoard.makeMove(move)
                 value = min(value, searchBoard.minimax(depth - 1, True))
                 
             return value
-        
         
     def makeMove(self, startSquare, targetSquare): # Change order, make efficient?
         piece = self.determinePieceOnSquare(startSquare)
@@ -173,31 +160,47 @@ class Board:
         if binString == '0' * NUMBER_OF_BITBOARDS:
             return -1
         return codedPieces[binString]
-        
-    def generateMoves(self, square) -> list:
-        if 2 ** square & self.generateWhite() != 0:
-            return [square, generateLegalMoves(self.generateOccupancyMask(), self.generateWhite(), self.generateBlack(), square, self.determinePieceOnSquare(square))]
-        
+    
+    def generateAllLegalMoves(self):
+        moves = []
+        for square in range(64):
+            if 2 ** square & self.generateWhite() != 0:
+                moves.append(turnAllMovesIntoPairsOfMoves(self.generateLegalMoves(square)))
                 
+        return moves
+        
+    def generateLegalMoves(self, square : int) -> int:
+        moves = 0
+        
+        occupancyMask = self.generateOccupancyMask()
+        whitePieces = self.generateWhite()
+        blackPieces = self.generateBlack()
+        piece = self.determinePieceOnSquare(square)
+        
+        match piece:
+            case 'K':
+                return generateKingMoves(whitePieces, square)
+            case 'Q':
+                return generateOrthogonalMoves(occupancyMask, square) | generateDiagnonalMoves(occupancyMask, square)
+            case 'R':
+                return generateOrthogonalMoves(occupancyMask, whitePieces, square)
+            case 'B':
+                return generateDiagnonalMoves(occupancyMask, whitePieces, square)
+            case 'N':
+                return generateKnightMoves(whitePieces, square)
+            case 'P':
+                return generatePawnMoves(occupancyMask, blackPieces, square) # Make use white pieces maybe?
+        return [square, moves]
     
     
-def generateLegalMoves(occupancyMask : int, whitePieces : int, blackPieces : int, square : int, piece : str) -> int:
-    moves = 0
-    match piece:
-        case 'K':
-            return generateKingMoves(whitePieces, square)
-        case 'Q':
-            return generateOrthogonalMoves(occupancyMask, square) | generateDiagnonalMoves(occupancyMask, square)
-        case 'R':
-            return generateOrthogonalMoves(occupancyMask, whitePieces, square)
-        case 'B':
-            return generateDiagnonalMoves(occupancyMask, whitePieces, square)
-        case 'N':
-            return generateKnightMoves(whitePieces, square)
-        case 'P':
-            return generatePawnMoves(occupancyMask, blackPieces, square) # Make use white pieces maybe?
-    return moves
-    
+def turnAllMovesIntoPairsOfMoves(startSquare, moves):
+    pairs = []
+    for square in range(64):
+        if 2 ** square & moves != 0:
+            pairs.append([startSquare, square])
+            
+    return pairs
+
 def flipBoard(x):
     h1 = 0x5555555555555555
     h2 = 0x3333333333333333
