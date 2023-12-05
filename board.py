@@ -71,7 +71,7 @@ class Board:
             stringToPrint += printBitboard(board) + '\n\n'
         return stringToPrint
     
-    def evaluate(self, depth : int) -> float: # Maybe seperate out to remove best_move from each call?
+    def evaluate(self) -> float: # Maybe seperate out to remove best_move from each call?
         eval = 0.0
         whitePieces = self.generateWhite()
         blackPieces = self.generateBlack()
@@ -88,7 +88,7 @@ class Board:
             
         return eval
     
-    def minimax(self, depth, maximizingPlayer):
+    def minimax(self, depth : int, maximizingPlayer : bool):
         searchBoard = self
         
         if depth == 0 or searchBoard.state != -1:
@@ -101,7 +101,7 @@ class Board:
                 searchBoard.bitboards[i] = flipBoard(searchBoard.bitboards[i])
             
             for move in searchBoard.generateAllLegalMoves(): # Fix output of generateMoves
-                searchBoard.makeMove(move)
+                searchBoard.makeMove(move[0], move[1])
                 value = max(value, searchBoard.minimax(depth - 1, False))
                 
             return value
@@ -113,12 +113,12 @@ class Board:
                 searchBoard.bitboards[i] = flipBoard(searchBoard.bitboards[i])
                 
             for move in searchBoard.generateAllLegalMoves(): # Fix output of generateMoves
-                searchBoard.makeMove(move)
+                searchBoard.makeMove(move[0], move[1])
                 value = min(value, searchBoard.minimax(depth - 1, True))
                 
             return value
         
-    def makeMove(self, startSquare, targetSquare): # Change order, make efficient?
+    def makeMove(self, startSquare : int, targetSquare : int): # Change order, make efficient?
         piece = self.determinePieceOnSquare(startSquare)
         
         if piece == -1:
@@ -161,15 +161,16 @@ class Board:
             return -1
         return codedPieces[binString]
     
-    def generateAllLegalMoves(self):
-        moves = []
+    def generateAllLegalMoves(self) -> list:
+        pairedMoves = []
         for square in range(64):
             if 2 ** square & self.generateWhite() != 0:
-                moves.append(turnAllMovesIntoPairsOfMoves(self.generateLegalMoves(square)))
+                moves = self.generateLegalMoves(square)
+                pairedMoves.append(turnAllMovesIntoPairsOfMoves(square, moves))
                 
-        return moves
+        return pairedMoves
         
-    def generateLegalMoves(self, square : int) -> int:
+    def generateLegalMoves(self, square : int) -> list:
         moves = 0
         
         occupancyMask = self.generateOccupancyMask()
@@ -181,7 +182,7 @@ class Board:
             case 'K':
                 return generateKingMoves(whitePieces, square)
             case 'Q':
-                return generateOrthogonalMoves(occupancyMask, square) | generateDiagnonalMoves(occupancyMask, square)
+                return generateOrthogonalMoves(occupancyMask, whitePieces, square) | generateDiagnonalMoves(occupancyMask, whitePieces, square)
             case 'R':
                 return generateOrthogonalMoves(occupancyMask, whitePieces, square)
             case 'B':
@@ -190,7 +191,7 @@ class Board:
                 return generateKnightMoves(whitePieces, square)
             case 'P':
                 return generatePawnMoves(occupancyMask, blackPieces, square) # Make use white pieces maybe?
-        return [square, moves]
+        return moves
     
     
 def turnAllMovesIntoPairsOfMoves(startSquare, moves):
@@ -397,8 +398,8 @@ def issquareOnBoard(square : int) -> bool:
     return 0 <= square <= 63
         
     
-board1 = Board(STARTING_FEN)
+board1 = Board(STARTING_FEN[::-1])
 
-board1.makeMove(63-15, 15)
+board1.minimax(2, True)
 
 print(board1)
