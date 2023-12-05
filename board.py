@@ -62,7 +62,7 @@ bitboardConversion = {'P' : PAWNS,
 class Board:
     def __init__(self, fen):
         self.bitboards = fenToBinaryArray(fen)
-        self.state = ""
+        self.state = -1
 
     def __repr__(self) -> str:
         stringToPrint = ''
@@ -75,7 +75,6 @@ class Board:
         eval = 0.0
         whitePieces = self.generateWhite()
         blackPieces = self.generateBlack()
-        
         
         for square in range(64):
             if self.determinePieceOnSquare(square).upper() == 'K':
@@ -100,9 +99,43 @@ class Board:
                 
         '''
         return eval
-
+    
+    def minimax(self, depth, maximizingPlayer):
+        searchBoard = self
+        
+        if depth == 0 or searchBoard.state != -1:
+            return searchBoard.evaluate()
+        
+        if maximizingPlayer:
+            value = -inf
+            
+            for i in range(NUMBER_OF_BITBOARDS):
+                searchBoard.bitboards[i] = flipBoard(searchBoard.bitboards[i])
+            
+            for move in searchBoard.generateMoves(): # Fix output of generateMoves
+                searchBoard.makeMove(move)
+                value = max(value, searchBoard.minimax(depth - 1, False))
+                
+            return value
+                
+        else:
+            value = inf
+            
+            for i in range(NUMBER_OF_BITBOARDS): # Make into method for class?
+                searchBoard.bitboards[i] = flipBoard(searchBoard.bitboards[i])
+                
+            for move in searchBoard.generateMoves(): # Fix output of generateMoves
+                searchBoard.makeMove(move)
+                value = min(value, searchBoard.minimax(depth - 1, True))
+                
+            return value
+        
+        
     def makeMove(self, startSquare, targetSquare): # Change order, make efficient?
         piece = self.determinePieceOnSquare(startSquare)
+        
+        if piece == -1:
+            return
         
         if piece == 'Q':
                 self.bitboards[ORTHOGONALS] &= ~(2 ** startSquare)
@@ -113,6 +146,8 @@ class Board:
                 
         self.bitboards[WHITE] &= ~(2 ** startSquare)
         self.bitboards[WHITE] |= 2 ** targetSquare
+        
+        self.bitboards[BLACK] &= ~(2 ** targetSquare)
         
         self.bitboards[bitboardConversion[piece]] &= ~(2 ** startSquare)
         self.bitboards[bitboardConversion[piece]] |= 2 ** targetSquare
@@ -136,24 +171,17 @@ class Board:
             binString += '1' if bitboard & 2 ** square != 0 else '0'
             
         if binString == '0' * NUMBER_OF_BITBOARDS:
-            return '0'
+            return -1
         return codedPieces[binString]
         
-    def generateMoves(self) -> list:
-        occupancyMask = self.generateOccupancyMask()
-        arrayOfMoves = []
-        whitePieces = self.generateWhite()
-        blackPieces = self.generateBlack()
-        for square in range(64):
-            if 2 ** square & whitePieces != 0:
-                piece = self.determinePieceOnSquare(square)
-                arrayOfMoves.append(generateMoves(occupancyMask, whitePieces, blackPieces, square, piece))
-                
-        return arrayOfMoves
+    def generateMoves(self, square) -> list:
+        if 2 ** square & self.generateWhite() != 0:
+            return [square, generateLegalMoves(self.generateOccupancyMask(), self.generateWhite(), self.generateBlack(), square, self.determinePieceOnSquare(square))]
+        
                 
     
     
-def generateMoves(occupancyMask : int, whitePieces : int, blackPieces : int, square : int, piece : str) -> int:
+def generateLegalMoves(occupancyMask : int, whitePieces : int, blackPieces : int, square : int, piece : str) -> int:
     moves = 0
     match piece:
         case 'K':
@@ -170,7 +198,23 @@ def generateMoves(occupancyMask : int, whitePieces : int, blackPieces : int, squ
             return generatePawnMoves(occupancyMask, blackPieces, square) # Make use white pieces maybe?
     return moves
     
-    
+def flipBoard(x):
+    h1 = 0x5555555555555555
+    h2 = 0x3333333333333333
+    h4 = 0x0F0F0F0F0F0F0F0F
+    v1 = 0x00FF00FF00FF00FF
+    v2 = 0x0000FFFF0000FFFF
+
+    x = ((x >> 1) & h1) | ((x & h1) << 1)
+    x = ((x >> 2) & h2) | ((x & h2) << 2)
+    x = ((x >> 4) & h4) | ((x & h4) << 4)
+    x = ((x >> 8) & v1) | ((x & v1) << 8)
+    x = ((x >> 16) & v2) | ((x & v2) << 16)
+    x = (x >> 32) | (x << 32)
+
+    # Ensure that the result is a 64-bit unsigned integer
+    return x & 0xFFFFFFFFFFFFFFFF
+
 def generateKingMoves(whitePieces : int, square : int):
     moves = 0
     offsets = [-9, -8, -7, -1, 1, 7, 8, 9]
@@ -333,6 +377,8 @@ def printBitboard(board : int) -> str:
             stringToPrint += '\n'
             count = 0
 
+    print(stringToPrint)
+    
     return stringToPrint
 
 def getFile(square : int) -> int:
@@ -348,5 +394,8 @@ def issquareOnBoard(square : int) -> bool:
     return 0 <= square <= 63
         
     
-board1 = Board('8/8/8/8/8/8/8/7q')
-print(board1.evaluate(1))
+board1 = Board(STARTING_FEN)
+
+board1.makeMove(63-15, 15)
+
+print(board1)
