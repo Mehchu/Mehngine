@@ -56,37 +56,25 @@ class Board:
                         'q' : -9
                         }
         
-    def __repr__(self) -> str: # Convert all the position back into a FEN
+    def __repr__(self) -> str:
+        fen = "/".join(self.rank_to_fen(rank) for rank in range(8))
+        return fen
+
+    def rank_to_fen(self, rank: int) -> str:
+        empty = 0
         fen = ""
-        
-        countEmptySquares = 0
-        
-        for square in range(64): # Loop through all the squares on the board to determine what piece is where
-            if square % 8 == 0: # Go onto a new line and reset blank square counter at each new rank
-                
-                if countEmptySquares != 0:
-                    fen += str(countEmptySquares)
-                    countEmptySquares = 0
-                
-                fen += '/'
-                
-            piece = self.determinePieceOnSquare(square) # Determine the piece on the current square
-            
-            if piece == ' ': # Increment counter for empty squares each time an empty square is found
-                countEmptySquares += 1
-                continue # Stop processing the empty square
-            
-            if countEmptySquares != 0: # Add the number of empty squares in a row to the fen
-                fen += str(countEmptySquares)
-                countEmptySquares = 0
-            
-            fen += piece
-        
-        if countEmptySquares != 0:
-            fen += str(countEmptySquares)
-            countEmptySquares = 0
-            
-        return fen[1:] # Get rid of the leading / from 0 % 8 = 0
+        for file in range(8):
+            piece = self.determinePieceOnSquare(rank * 8 + file)
+            if piece == ' ':
+                empty += 1
+            else:
+                if empty:
+                    fen += str(empty)
+                    empty = 0
+                fen += piece
+        if empty:
+            fen += str(empty)
+        return fen
     
     def makeMove(self, startSquare : int, targetSquare : int): # Change order, make efficient?
         self.previous_position = self.bitboards.copy()
