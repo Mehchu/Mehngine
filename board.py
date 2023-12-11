@@ -1,4 +1,4 @@
-from fenConversion import fenToBinaryArray
+from fenManipulation import fenToBinaryArray
 import re
 from math import inf
 # TODO: Has white starting at 64, try to invert?
@@ -59,6 +59,7 @@ bitboardConversion = {'P' : PAWNS,
               'R' : ORTHOGONALS,
               'K' : KINGS
               }
+
 class Board:
     def __init__(self, fen):
         self.bitboards = fenToBinaryArray(fen)
@@ -77,42 +78,63 @@ class Board:
         blackPieces = self.generateBlack()
         
         for square in range(64):
-            if self.determinePieceOnSquare(square).upper() == 'K':
+            piece = self.determinePieceOnSquare(square)
+            
+            if piece == -1:
+                continue
+            
+            if piece.upper() == 'K':
                 continue
             
             if 2 ** square & whitePieces != 0:
-                eval += pieceValue[self.determinePieceOnSquare(square)]
+                eval += pieceValue[piece]
             
             if 2 ** square & blackPieces != 0:
-                eval += pieceValue[self.determinePieceOnSquare(square)]
+                eval += pieceValue[piece]
             
         return eval
     
     def minimax(self, depth : int, maximizingPlayer : bool):
         searchBoard = self
-        
+        move = []
         if depth == 0 or searchBoard.state != -1:
             return searchBoard.evaluate()
         
         if maximizingPlayer:
+            print("First")
             value = -inf
             
             for i in range(NUMBER_OF_BITBOARDS):
                 searchBoard.bitboards[i] = flipBoard(searchBoard.bitboards[i])
             
-            for move in searchBoard.generateAllLegalMoves(): # Fix output of generateMoves
+                
+            for move in searchBoard.generateAllLegalMoves():
+                
+                print("Mask")
+                print(printBitboard(searchBoard.generateOccupancyMask()))
+                
+                print(move)
+                
                 searchBoard.makeMove(move[0], move[1])
                 value = max(value, searchBoard.minimax(depth - 1, False))
                 
+            
             return value
                 
         else:
+            print("Second")
             value = inf
             
             for i in range(NUMBER_OF_BITBOARDS): # Make into method for class?
                 searchBoard.bitboards[i] = flipBoard(searchBoard.bitboards[i])
+            
+            
+            for move in searchBoard.generateAllLegalMoves():
+                print("Mask")
+                print(printBitboard(searchBoard.generateOccupancyMask()))
                 
-            for move in searchBoard.generateAllLegalMoves(): # Fix output of generateMoves
+                print(move)
+                
                 searchBoard.makeMove(move[0], move[1])
                 value = min(value, searchBoard.minimax(depth - 1, True))
                 
@@ -124,18 +146,41 @@ class Board:
         if piece == -1:
             return
         
-        if piece == 'Q':
-                self.bitboards[ORTHOGONALS] &= ~(2 ** startSquare)
-                self.bitboards[ORTHOGONALS] |= 2 ** targetSquare
-                
-                self.bitboards[DIAGONALS] &= ~(2 ** startSquare)
-                self.bitboards[DIAGONALS] |= 2 ** targetSquare
-                
+        piece = piece.upper()
+        
         self.bitboards[WHITE] &= ~(2 ** startSquare)
         self.bitboards[WHITE] |= 2 ** targetSquare
         
         self.bitboards[BLACK] &= ~(2 ** targetSquare)
         
+        if (opponentPiece := self.determinePieceOnSquare(targetSquare)) != -1:
+            opponentPiece = opponentPiece.upper()
+
+            if opponentPiece == 'q':
+                self.bitboards[ORTHOGONALS] &= ~(2 ** startSquare)
+                self.bitboards[ORTHOGONALS] |= 2 ** targetSquare
+                
+                
+                self.bitboards[DIAGONALS] &= ~(2 ** startSquare)
+                self.bitboards[DIAGONALS] |= 2 ** targetSquare
+                
+                return
+            
+            self.bitboards[bitboardConversion[opponentPiece]] &= ~(2 ** targetSquare)
+        
+
+        
+        if piece == 'Q':
+                self.bitboards[ORTHOGONALS] &= ~(2 ** startSquare)
+                self.bitboards[ORTHOGONALS] |= 2 ** targetSquare
+                
+                
+                self.bitboards[DIAGONALS] &= ~(2 ** startSquare)
+                self.bitboards[DIAGONALS] |= 2 ** targetSquare
+                
+                return
+
+
         self.bitboards[bitboardConversion[piece]] &= ~(2 ** startSquare)
         self.bitboards[bitboardConversion[piece]] |= 2 ** targetSquare
 
@@ -152,7 +197,7 @@ class Board:
 
         return occupancyMask
     
-    def determinePieceOnSquare(self, square : int) -> str:
+    def determinePieceOnSquare(self, square : int):
         binString = ''
         for bitboard in self.bitboards:
             binString += '1' if bitboard & 2 ** square != 0 else '0'
@@ -166,11 +211,15 @@ class Board:
         for square in range(64):
             if 2 ** square & self.generateWhite() != 0:
                 moves = self.generateLegalMoves(square)
-                pairedMoves.append(turnAllMovesIntoPairsOfMoves(square, moves))
+                pairedMove = turnAllMovesIntoPairsOfMoves(square, moves)
                 
+                if pairedMove != []:
+                    for movePerPiece in pairedMove:
+                        pairedMoves.append(movePerPiece)
+
         return pairedMoves
         
-    def generateLegalMoves(self, square : int) -> list:
+    def generateLegalMoves(self, square : int) -> int:
         moves = 0
         
         occupancyMask = self.generateOccupancyMask()
@@ -225,7 +274,7 @@ def generateKingMoves(whitePieces : int, square : int):
     
     for offset in offsets:
         newSquare = square + offset
-        if issquareOnBoard(newSquare) and 2 ** (newSquare) & whitePieces == 0:
+        if isSquareOnBoard(newSquare) and 2 ** (newSquare) & whitePieces == 0:
             moves += 2 ** (square + offset)
     
     return moves
@@ -236,7 +285,7 @@ def generateKnightMoves(whitePieces : int, square : int):
     
     for offset in offsets:
         newSquare = square + offset
-        if issquareOnBoard(newSquare) and 2 ** (newSquare) & whitePieces == 0:
+        if isSquareOnBoard(newSquare) and 2 ** (newSquare) & whitePieces == 0:
             moves += 2 ** (square + offset)
     
     return moves
@@ -247,7 +296,7 @@ def generateOrthogonalMoves(occupancyMask : int, whitePieces : int, square : int
     newSquare = square
     for _ in FILES:
         newSquare += 1
-        if not issquareOnBoard(newSquare) or 2 ** newSquare & whitePieces != 0 or getRank(square) != getRank(newSquare):
+        if not isSquareOnBoard(newSquare) or 2 ** newSquare & whitePieces != 0 or getRank(square) != getRank(newSquare):
             break
         
         moves += 2 ** newSquare
@@ -258,7 +307,7 @@ def generateOrthogonalMoves(occupancyMask : int, whitePieces : int, square : int
     newSquare = square
     for _ in FILES:
         newSquare -= 1
-        if not issquareOnBoard(newSquare) or 2 ** newSquare & whitePieces != 0 or getRank(square) != getRank(newSquare):
+        if not isSquareOnBoard(newSquare) or 2 ** newSquare & whitePieces != 0 or getRank(square) != getRank(newSquare):
             break
         
         moves += 2 ** newSquare
@@ -269,7 +318,7 @@ def generateOrthogonalMoves(occupancyMask : int, whitePieces : int, square : int
     newSquare = square
     for _ in RANKS:
         newSquare += 8
-        if not issquareOnBoard(newSquare) or 2 ** newSquare & whitePieces != 0 or getFile(square) != getFile(newSquare):
+        if not isSquareOnBoard(newSquare) or 2 ** newSquare & whitePieces != 0 or getFile(square) != getFile(newSquare):
             break
         
         moves += 2 ** newSquare
@@ -280,7 +329,7 @@ def generateOrthogonalMoves(occupancyMask : int, whitePieces : int, square : int
     newSquare = square
     for _ in RANKS:
         newSquare -= 8
-        if not issquareOnBoard(newSquare) or 2 ** newSquare & whitePieces != 0 or getFile(square) != getFile(newSquare):
+        if not isSquareOnBoard(newSquare) or 2 ** newSquare & whitePieces != 0 or getFile(square) != getFile(newSquare):
             break
         
         moves += 2 ** newSquare
@@ -290,17 +339,17 @@ def generateOrthogonalMoves(occupancyMask : int, whitePieces : int, square : int
     
     return moves
 
-def generateDiagnonalMoves(occupancyMask : int, whitePices : int, square : int) -> int:
+def generateDiagnonalMoves(occupancyMask : int, whitePieces : int, square : int) -> int:
     moves = 0
     # OR parallel to the a1 to h8 diagonal
     newSquare = square
-    for _ in RANKS:
+    while isSquareOnBoard(newSquare + 9):
         newSquare += 9
         
-        if 2 ** newSquare & whitePices != 0:
+        if 2 ** newSquare & whitePieces != 0:
             break
         
-        if abs(getFile(newSquare) - getFile(square)) == abs(getRank(newSquare) - getRank(square)) and issquareOnBoard(newSquare): # No teleporting nonesense
+        if abs(getFile(newSquare) - getFile(square)) == abs(getRank(newSquare) - getRank(square)) and isSquareOnBoard(newSquare): # No teleporting nonesense
             moves += 2 ** newSquare
             
         if 2 ** newSquare & occupancyMask != 0:
@@ -308,13 +357,13 @@ def generateDiagnonalMoves(occupancyMask : int, whitePices : int, square : int) 
             
     # Other direction
     newSquare = square
-    for _ in RANKS:
+    while isSquareOnBoard(newSquare - 9):
         newSquare -= 9
         
-        if 2 ** newSquare & whitePices != 0:
+        if 2 ** newSquare & whitePieces != 0:
             break
         
-        if abs(getFile(newSquare) - getFile(square)) == abs(getRank(newSquare) - getRank(square)) and issquareOnBoard(newSquare): # No teleporting nonesense
+        if abs(getFile(newSquare) - getFile(square)) == abs(getRank(newSquare) - getRank(square)) and isSquareOnBoard(newSquare): # No teleporting nonesense
             moves += 2 ** newSquare
             
         if 2 ** newSquare & occupancyMask != 0:
@@ -322,13 +371,13 @@ def generateDiagnonalMoves(occupancyMask : int, whitePices : int, square : int) 
         
     # OR parallel to the h1 to a8 diagonal      
     newSquare = square
-    for _ in RANKS:
+    while isSquareOnBoard(newSquare + 7):
         newSquare += 7
         
-        if 2 ** newSquare & whitePices != 0:
+        if 2 ** newSquare & whitePieces != 0:
             break
         
-        if abs(getFile(newSquare) - getFile(square)) == abs(getRank(newSquare) - getRank(square)) and issquareOnBoard(newSquare): # No teleporting nonesense
+        if abs(getFile(newSquare) - getFile(square)) == abs(getRank(newSquare) - getRank(square)) and isSquareOnBoard(newSquare): # No teleporting nonesense
             moves += 2 ** newSquare
             
         if 2 ** newSquare & occupancyMask != 0:
@@ -336,13 +385,13 @@ def generateDiagnonalMoves(occupancyMask : int, whitePices : int, square : int) 
             
     # Other direction on other diagonal
     newSquare = square
-    for _ in RANKS:
+    while isSquareOnBoard(newSquare - 7):
         newSquare -= 7
         
-        if 2 ** newSquare & whitePices != 0:
+        if 2 ** newSquare & whitePieces != 0:
             break
         
-        if abs(getFile(newSquare) - getFile(square)) == abs(getRank(newSquare) - getRank(square)) and issquareOnBoard(newSquare): # No teleporting nonesense
+        if abs(getFile(newSquare) - getFile(square)) == abs(getRank(newSquare) - getRank(square)) and isSquareOnBoard(newSquare): # No teleporting nonesense
             moves += 2 ** newSquare
             
         if 2 ** newSquare & occupancyMask != 0:
@@ -353,17 +402,17 @@ def generateDiagnonalMoves(occupancyMask : int, whitePices : int, square : int) 
 def generatePawnMoves(ocuupancyMask : int, blackPieces : int, square : int) -> int:
     moves = 0
     # Find forward pawn moves
-    if 2 ** (square - 8) & ocuupancyMask == 0 and issquareOnBoard(square - 8):
-        moves += 2 ** (square - 8)
+    if 2 ** (square + 8) & ocuupancyMask == 0 and isSquareOnBoard(square + 8):
+        moves += 2 ** (square + 8)
         if getRank(square) == 6:
-            moves += 2 ** (square - 16)
+            moves += 2 ** (square + 16)
 
     # Find captures
-    if 2 ** (square - 7) & blackPieces != 0:
-        moves += 2 ** (square - 7)
+    if 2 ** (square + 7) & blackPieces != 0:
+        moves += 2 ** (square + 7)
 
-    if 2 ** (square - 9) & blackPieces != 0:
-        moves += 2 ** (square - 9)
+    if 2 ** (square + 9) & blackPieces != 0:
+        moves += 2 ** (square + 9)
     
     return moves
             
@@ -380,8 +429,6 @@ def printBitboard(board : int) -> str:
         if count == 8:
             stringToPrint += '\n'
             count = 0
-
-    print(stringToPrint)
     
     return stringToPrint
 
@@ -394,12 +441,9 @@ def getRank(square : int) -> int:
 def squareOf(rank : int, file : int) -> int:
     return rank * 8 + file
 
-def issquareOnBoard(square : int) -> bool:
+def isSquareOnBoard(square : int) -> bool:
     return 0 <= square <= 63
         
-    
-board1 = Board(STARTING_FEN[::-1])
+board1 = Board('8/8/8/2ppp3/2pQp3/2ppp3/8/8')
 
-board1.minimax(2, True)
-
-print(board1)
+print(board1.minimax(2, True))
