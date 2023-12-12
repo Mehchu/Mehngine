@@ -11,9 +11,11 @@ STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 TEST_FEN = "8/8/8/4b3/3B4/8/8/8"
 
 def main():
-    position = Board(STARTING_FEN)
-
+    position = Board(TEST_FEN)
     
+    printArrays(fenToArray(str(position)))
+    
+    print(position.generateAllLegalMoves())
     print(position.negamax(2))
     
     
