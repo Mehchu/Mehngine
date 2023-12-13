@@ -56,28 +56,36 @@ class Board:
                                    'K': PieceType.KINGS
                                    }
 
+        # Converts each piece to their material value for evaluation purposes
         self.pieceValue = {'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 99,
                            'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9, 'k': -99}
 
         self.RANKS = range(8)
         self.FILES = range(8)
+        
+        # Initialize castling and en passant flags
+        self.white_can_castle_kingside = True
+        self.white_can_castle_queenside = True
+        self.black_can_castle_kingside = True
+        self.black_can_castle_queenside = True
+        self.en_passant_target_square = None
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str: # Converts the position to its given FEN
         return "/".join(self.rank_to_fen(rank) for rank in range(8)) # Returns the FEN of the position by combining the FEN of each rank 
 
-    def rank_to_fen(self, rank: int) -> str: # COnverts a rank of a position into its corresponding FEN
+    def rank_to_fen(self, rank: int) -> str: # Converts a rank of a position into its corresponding FEN
         empty = 0
         fen = ""
-        for file in range(8):
+        for file in range(8): # Loops through the files in the rank
             piece = self.determinePieceOnSquare(rank * 8 + file)
-            if piece == ' ':
+            if piece == ' ': # Counts consecutive blank squares for FEN
                 empty += 1
             else:
-                if empty:
+                if empty: # Adds the total to the FEN when a non-empty square is found
                     fen += str(empty)
                     empty = 0
                 fen += piece
-        if empty:
+        if empty: # Adds together empty squares for final FEN
             fen += str(empty)
         return fen
 
@@ -114,6 +122,32 @@ class Board:
 
         self.bitboards[self.bitboardConversion[piece].value] &= ~(1 << startSquare)
         self.bitboards[self.bitboardConversion[piece].value] |= 1 << targetSquare
+        
+                # Handle castling moves
+        if piece == 'K' and startSquare == 4 and targetSquare == 6:  # White kingside castle
+            # Move the rook
+            self.bitboards[PieceType.ORTHOGONALS.value] &= ~(1 << 7)
+            self.bitboards[PieceType.ORTHOGONALS.value] |= 1 << 5
+        elif piece == 'K' and startSquare == 4 and targetSquare == 2:  # White queenside castle
+            # Move the rook
+            self.bitboards[PieceType.ORTHOGONALS.value] &= ~(1 << 0)
+            self.bitboards[PieceType.ORTHOGONALS.value] |= 1 << 3
+        elif piece == 'k' and startSquare == 60 and targetSquare == 62:  # Black kingside castle
+            # Move the rook
+            self.bitboards[PieceType.ORTHOGONALS.value] &= ~(1 << 63)
+            self.bitboards[PieceType.ORTHOGONALS.value] |= 1 << 61
+        elif piece == 'k' and startSquare == 60 and targetSquare == 58:  # Black queenside castle
+            # Move the rook
+            self.bitboards[PieceType.ORTHOGONALS.value] &= ~(1 << 56)
+            self.bitboards[PieceType.ORTHOGONALS.value] |= 1 << 59
+
+        # Handle en passant moves
+        if piece == 'P' and targetSquare == self.en_passant_target_square:  # White en passant capture
+            # Remove the captured pawn
+            self.bitboards[PieceType.PAWNS.value] &= ~(1 << (targetSquare - 8))
+        elif piece == 'p' and targetSquare == self.en_passant_target_square:  # Black en passant capture
+            # Remove the captured pawn
+            self.bitboards[PieceType.PAWNS.value] &= ~(1 << (targetSquare + 8))
 
     def undoMove(self): # Returns the board to its previous position
         self.bitboards = self.previous_position.copy()
@@ -283,6 +317,7 @@ class Board:
         x = ((x >> 16) & v2) | ((x & v2) << 16)
         x = (x >> 32) | (x << 32)
         return x & 0xFFFFFFFFFFFFFFFF
+    
 
     def flipAllBoards(self): # Flips all bitboards of the position, effectively making it black's turn
         self.bitboards = [self.flip_bitboard(bitboard) for bitboard in self.bitboards]
@@ -297,16 +332,16 @@ class Board:
         best_move = None
 
         for move in self.generateAllLegalMoves():
-            searchBoard = deepcopy(self)
-            searchBoard.makeMove(move[0], move[1])
-            searchBoard.flipAllBoards()
-            value, _ = searchBoard.negamax(depth - 1, -beta, -alpha)
+            self.makeMove(move[0], move[1])
+            self.flipAllBoards()
+            value, _ = self.negamax(depth - 1, -beta, -alpha)
+            self.undoMove()
 
-            if -value > max_value:  # Negate the value here
-                max_value = -value  # Negate the value here
+            if -value > max_value:
+                max_value = -value
                 best_move = move
 
-            alpha = max(alpha, -value)  # Negate the value here
+            alpha = max(alpha, -value)
             if alpha >= beta:
                 break
 
