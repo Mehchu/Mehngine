@@ -132,14 +132,6 @@ class Board:
             # Move the rook
             self.bitboards[PieceType.ORTHOGONALS.value] &= ~(1 << 0)
             self.bitboards[PieceType.ORTHOGONALS.value] |= 1 << 3
-        elif piece == 'k' and startSquare == 60 and targetSquare == 62:  # Black kingside castle
-            # Move the rook
-            self.bitboards[PieceType.ORTHOGONALS.value] &= ~(1 << 63)
-            self.bitboards[PieceType.ORTHOGONALS.value] |= 1 << 61
-        elif piece == 'k' and startSquare == 60 and targetSquare == 58:  # Black queenside castle
-            # Move the rook
-            self.bitboards[PieceType.ORTHOGONALS.value] &= ~(1 << 56)
-            self.bitboards[PieceType.ORTHOGONALS.value] |= 1 << 59
 
         # Handle en passant moves
         if piece == 'P' and targetSquare == self.en_passant_target_square:  # White en passant capture
@@ -148,6 +140,9 @@ class Board:
         elif piece == 'p' and targetSquare == self.en_passant_target_square:  # Black en passant capture
             # Remove the captured pawn
             self.bitboards[PieceType.PAWNS.value] &= ~(1 << (targetSquare + 8))
+            
+        # Update en passant target square
+        self.updateEnPassantTargetSquare(startSquare, targetSquare)
 
     def undoMove(self): # Returns the board to its previous position
         self.bitboards = self.previous_position.copy()
@@ -219,6 +214,15 @@ class Board:
             pawnMoves |= 1 << (square - 9)
 
         return pawnMoves
+    
+    def updateEnPassantTargetSquare(self, startSquare: int, targetSquare: int):
+        piece = self.determinePieceOnSquare(startSquare)
+        if piece == 'P' and abs(startSquare - targetSquare) == 16:  # White pawn double move
+            self.en_passant_target_square = targetSquare - 8
+        elif piece == 'p' and abs(startSquare - targetSquare) == 16:  # Black pawn double move
+            self.en_passant_target_square = targetSquare + 8
+        else:
+            self.en_passant_target_square = None
 
     def generateKnightMoves(self, whitePieces: int, square: int):
         knightMoves = 0
@@ -309,20 +313,19 @@ class Board:
         v1 = 0x00FF00FF00FF00FF
         v2 = 0x0000FFFF0000FFFF
 
-        x = bitboard
-        x = ((x >> 1) & h1) | ((x & h1) << 1)
-        x = ((x >> 2) & h2) | ((x & h2) << 2)
-        x = ((x >> 4) & h4) | ((x & h4) << 4)
-        x = ((x >> 8) & v1) | ((x & v1) << 8)
-        x = ((x >> 16) & v2) | ((x & v2) << 16)
-        x = (x >> 32) | (x << 32)
-        return x & 0xFFFFFFFFFFFFFFFF
+        bitboard = ((bitboard >> 1) & h1) | ((bitboard & h1) << 1)
+        bitboard = ((bitboard >> 2) & h2) | ((bitboard & h2) << 2)
+        bitboard = ((bitboard >> 4) & h4) | ((bitboard & h4) << 4)
+        bitboard = ((bitboard >> 8) & v1) | ((bitboard & v1) << 8)
+        bitboard = ((bitboard >> 16) & v2) | ((bitboard & v2) << 16)
+        bitboard = (bitboard >> 32) | (bitboard << 32)
+        return bitboard & 0xFFFFFFFFFFFFFFFF
     
-
-    def flipAllBoards(self): # Flips all bitboards of the position, effectively making it black's turn
-        self.bitboards = [self.flip_bitboard(bitboard) for bitboard in self.bitboards]
-        self.bitboards[PieceType.WHITE.value], self.bitboards[PieceType.BLACK.value] = \
-            self.bitboards[PieceType.BLACK.value], self.bitboards[PieceType.WHITE.value]
+    def flipAllBoards(self):
+        for i in range(self.numberOfBitboards):
+            self.bitboards[i] = self.flip_bitboard(self.bitboards[i])
+            
+        
 
     def negamax(self, depth: int, alpha, beta) -> tuple[float, list]:
         if depth == 0 or self.gameState != 0:
