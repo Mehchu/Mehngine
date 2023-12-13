@@ -6,13 +6,6 @@ from fenManipulation import fenToBinaryArray, fenToArray
 from enum import Enum
 from copy import deepcopy
 
-
-def printArrays(arrays):
-    border = "-" * 26
-    print(border)
-    for array in arrays:
-        print("| " + " ".join(str(element) for element in array) + " |")
-    print(border[:-1])
     
 class PieceType(Enum):
     WHITE = 0
@@ -275,7 +268,7 @@ class Board:
 
         return evaluation
 
-    def flip_bitboard(self, bitboard: int) -> int:
+    def flip_bitboard(self, bitboard: int) -> int: # Flips a bitboard to be from black's perspective
         h1 = 0x5555555555555555
         h2 = 0x3333333333333333
         h4 = 0x0F0F0F0F0F0F0F0F
@@ -291,27 +284,10 @@ class Board:
         x = (x >> 32) | (x << 32)
         return x & 0xFFFFFFFFFFFFFFFF
 
-    def flipAllBoards(self):
+    def flipAllBoards(self): # Flips all bitboards of the position, effectively making it black's turn
         self.bitboards = [self.flip_bitboard(bitboard) for bitboard in self.bitboards]
         self.bitboards[PieceType.WHITE.value], self.bitboards[PieceType.BLACK.value] = \
             self.bitboards[PieceType.BLACK.value], self.bitboards[PieceType.WHITE.value]
-        
-    def minimax(self, depth: int, maximizingPlayer: bool):
-        if depth == 0 or self.gameState == 0:
-            return self.evaluate()
-
-        value = -inf if maximizingPlayer else inf
-        legalMoves = self.generateAllLegalMoves()
-
-        for move in legalMoves:
-            self.makeMove(move[0], move[1])
-            self.flipAllBoards()
-            newValue = self.minimax(depth - 1, not maximizingPlayer)
-            self.undoMove()
-            value = max(value, newValue) if maximizingPlayer else min(
-                value, newValue)
-
-        return value
 
     def negamax(self, depth: int, alpha, beta) -> tuple[float, list]:
         if depth == 0 or self.gameState != 0:
@@ -325,13 +301,12 @@ class Board:
             searchBoard.makeMove(move[0], move[1])
             searchBoard.flipAllBoards()
             value, _ = searchBoard.negamax(depth - 1, -beta, -alpha)
-            value = -value
 
-            if value > max_value:
-                max_value = value
+            if -value > max_value:  # Negate the value here
+                max_value = -value  # Negate the value here
                 best_move = move
 
-            alpha = max(alpha, value)
+            alpha = max(alpha, -value)  # Negate the value here
             if alpha >= beta:
                 break
 
