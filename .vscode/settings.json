@@ -14,5 +14,6 @@
         "RNBQKBNR",
         "seperate",
         "teleporting"
-    ]
+    ],
+    "sourcery.codeLens": false
 }

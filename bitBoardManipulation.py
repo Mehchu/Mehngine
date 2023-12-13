@@ -1,20 +1,20 @@
 def printBitboard(board : int) -> str:
     binBoard = bin(board)[2:] # Remove the 0b which starts all binary strings
-    
+
     while len(binBoard) < 64: # Ensure binary is the required 64 bits long to be printed
-        binBoard = '0' + binBoard
-        
+        binBoard = f'0{binBoard}'
+
     count = 0
     stringToPrint = ""
-    
+
     for square in binBoard:
-        stringToPrint += square + ' '
+        stringToPrint += f'{square} '
         count += 1
 
         if count == 8: # Go onto a new line each time a file is filled
             stringToPrint += '\n'
             count = 0
-    
+
     return stringToPrint
 
 def getFile(square : int) -> int: # Return the index of the file of the square

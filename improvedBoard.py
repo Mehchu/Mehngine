@@ -1,10 +1,19 @@
 from math import inf
+
 from bitBoardManipulation import *
 from fenManipulation import fenToBinaryArray, fenToArray
 
 from enum import Enum
+from copy import deepcopy
 
 
+def printArrays(arrays):
+    border = "-" * 26
+    print(border)
+    for array in arrays:
+        print("| " + " ".join(str(element) for element in array) + " |")
+    print(border[:-1])
+    
 class PieceType(Enum):
     WHITE = 0
     BLACK = 1
@@ -23,15 +32,17 @@ class ChessPiece:
 
 class Board:
     def __init__(self, fen: str) -> None:
+        # Updates when game ends (by draw or by checkmate)
         self.gameState = 0
 
-        # Converts the initial fen into an array of bitboards
+        # Converts the initial FEN into an array of bitboards
         self.bitboards = fenToBinaryArray(fen)
-        self.previous_position = fenToBinaryArray(fen)
+        self.previous_position = self.bitboards.copy()
 
         # Stores number of bitboards for later use
         self.numberOfBitboards = len(PieceType)
 
+        # Binary representation of a square across all bitboards to its corresponding piece
         self.binaryToPiece = {'1010000': 'P',
                               '1001000': 'N',
                               '1000100': 'B',
@@ -52,17 +63,16 @@ class Board:
                                    'K': PieceType.KINGS
                                    }
 
-        self.pieceValue = {'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0,
-                           'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9, 'k': 0}
+        self.pieceValue = {'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 99,
+                           'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9, 'k': -99}
 
         self.RANKS = range(8)
         self.FILES = range(8)
 
     def __repr__(self) -> str:
-        # Returns the FEN of the position
-        return "/".join(self.rank_to_fen(rank) for rank in range(8))
+        return "/".join(self.rank_to_fen(rank) for rank in range(8)) # Returns the FEN of the position by combining the FEN of each rank 
 
-    def rank_to_fen(self, rank: int) -> str:
+    def rank_to_fen(self, rank: int) -> str: # COnverts a rank of a position into its corresponding FEN
         empty = 0
         fen = ""
         for file in range(8):
@@ -112,7 +122,7 @@ class Board:
         self.bitboards[self.bitboardConversion[piece].value] &= ~(1 << startSquare)
         self.bitboards[self.bitboardConversion[piece].value] |= 1 << targetSquare
 
-    def undoMove(self):
+    def undoMove(self): # Returns the board to its previous position
         self.bitboards = self.previous_position.copy()
 
     def determinePieceOnSquare(self, square: int) -> str:
@@ -126,8 +136,7 @@ class Board:
         # Convert the binary string to a piece character
         return self.binaryToPiece[binString]
 
-    # Bitwise OR each bitboard together to return mask of all pieces without any piece data
-    def generateOccupancyMask(self) -> int:
+    def generateOccupancyMask(self) -> int: # Bitwise OR each bitboard together to return mask of all pieces without any piece data
         occupancyMask = 0
 
         for bitboard in self.bitboards:
@@ -145,18 +154,26 @@ class Board:
         moves = 0
         for offset in direction_offsets:
             new_square = square + offset
-            while isSquareOnBoard(new_square):
+            while isSquareOnBoard(new_square) and abs(getFile(new_square) - getFile(new_square - offset)) <= 1 and abs(getRank(new_square) - getRank(new_square - offset)) <= 1:
                 if 1 << new_square & occupancy_mask:
                     if 1 << new_square & own_pieces:
-                        break
-                    moves |= 1 << new_square
+                        moves |= 1 << new_square
                     break
                 moves |= 1 << new_square
                 new_square += offset
+        
         return moves
 
-    def generateKingMoves(self, white_pieces, square):
-        return self.generateMovesInDirection(square, [-9, -8, -7, -1, 1, 7, 8, 9], self.generateOccupancyMask(), white_pieces)
+    def generateKingMoves(self, whitePieces : int, square : int):
+        moves = 0
+        offsets = [-9, -8, -7, -1, 1, 7, 8, 9]
+        
+        for offset in offsets:
+            newSquare = square + offset
+            if isSquareOnBoard(newSquare) and 1 << (newSquare) & whitePieces == 0:
+                moves += 1 << (square + offset)
+        
+        return moves
 
     def generatePawnMoves(self, ocuupancyMask: int, blackPieces: int, square: int) -> int:
         pawnMoves = 0
@@ -239,7 +256,7 @@ class Board:
                     pairedMoves.extend(pairedMove)
         return pairedMoves
 
-    def evaluate(self) -> float:  # Maybe seperate out to remove best_move from each call?
+    def evaluate(self) -> float:
         evaluation = 0.0
         whitePieces = self.generateWhite()
         blackPieces = self.generateBlack()
@@ -248,9 +265,6 @@ class Board:
             piece = self.determinePieceOnSquare(square)
 
             if piece == -1:
-                continue
-
-            if piece.upper() == 'K':
                 continue
 
             if 1 << square & whitePieces != 0:
@@ -278,9 +292,10 @@ class Board:
         return x & 0xFFFFFFFFFFFFFFFF
 
     def flipAllBoards(self):
-        for i in range(self.numberOfBitboards):
-            self.bitboards[i] = self.flip_bitboard(self.bitboards[i])
-
+        self.bitboards = [self.flip_bitboard(bitboard) for bitboard in self.bitboards]
+        self.bitboards[PieceType.WHITE.value], self.bitboards[PieceType.BLACK.value] = \
+            self.bitboards[PieceType.BLACK.value], self.bitboards[PieceType.WHITE.value]
+        
     def minimax(self, depth: int, maximizingPlayer: bool):
         if depth == 0 or self.gameState == 0:
             return self.evaluate()
@@ -298,16 +313,26 @@ class Board:
 
         return value
 
-    def negamax(self, depth: int) -> float:
-        if depth == 0:
-            return self.evaluate()
+    def negamax(self, depth: int, alpha, beta) -> tuple[float, list]:
+        if depth == 0 or self.gameState != 0:
+            return self.evaluate(), None
+
         max_value = -inf
+        best_move = None
 
         for move in self.generateAllLegalMoves():
-            self.makeMove(move[0], move[1])
-            self.flipAllBoards()
-            value = self.negamax(depth - 1)
-            self.undoMove()
-            max_value = max(max_value, value)
+            searchBoard = deepcopy(self)
+            searchBoard.makeMove(move[0], move[1])
+            searchBoard.flipAllBoards()
+            value, _ = searchBoard.negamax(depth - 1, -beta, -alpha)
+            value = -value
 
-        return max_value
+            if value > max_value:
+                max_value = value
+                best_move = move
+
+            alpha = max(alpha, value)
+            if alpha >= beta:
+                break
+
+        return max_value, best_move

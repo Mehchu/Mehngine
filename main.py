@@ -1,35 +1,24 @@
 from improvedBoard import Board
 from fenManipulation import fenToArray
-
-
-# TODO: Improve generation of diagonal and orthogonal moves
-#
-#
-#
+from math import inf
 
 STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
-TEST_FEN = "8/8/8/4b3/3B4/8/8/8"
+TEST_FEN = "rnbqkbnr/ppppp2p/5p2/6p1/4P3/8/PPPP1PPP/RNBQKBNR"
+OTHER_TEST_FEN = "3Q4/8/k1K5/8/8/8/8/8"
 
 def main():
-    position = Board(TEST_FEN)
+    position = Board(OTHER_TEST_FEN)
     
-    printArrays(fenToArray(str(position)))
-    
-    print(position.generateAllLegalMoves())
-    print(position.negamax(2))
+    print(position.negamax(5, -inf, inf)) # Should always be a multiple of two
     
     
     
-def printArrays(arrays): # To print the array of the ranks of a board in a readable form
-    stringToPrint = "--------------------------\n|"
-
+def printArrays(arrays):
+    border = "-" * 26
+    print(border)
     for array in arrays:
-        for element in array:
-            stringToPrint += f' {str(element)} '
-        stringToPrint += '|\n|'
-
-    stringToPrint += "------------------------|"
-    print(stringToPrint)
+        print("| " + " ".join(str(element) for element in array) + " |")
+    print(border[:-1])
             
 
 if __name__ == "__main__":
