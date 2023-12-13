@@ -22,40 +22,39 @@ def fenToArray(fen): # Not needed?
             if square.upper() in "PNBRQK":
                 row.append(square)
             elif square.isdigit():
-                for _ in range(int(square)):
-                    row.append(' ')
+                row.extend(' ' for _ in range(int(square)))
         array.append(row)
     return array
 
 def fenToBinaryArray(fen):
     bitBoards = [0] * NUMBER_OF_BITBOARDS
-    fen = (row for row in fen.split('/')) # Flip King and Queen for some reason with row[::-1]
+    fen = iter(fen.split('/'))
 
-    sqaure_index = 0
+    square_index = 0
     for rank in fen:
         for file_index in range(len(rank)):
             if rank[file_index].isdigit():
-                sqaure_index += int(rank[file_index]) # Use walrus maybe?
+                square_index += int(rank[file_index]) # Use walrus maybe?
                 continue
             piece = rank[file_index]
             # Sort piece into white/black bitboards
             if piece.upper() == piece:
-                bitBoards[WHITE] += 2 ** sqaure_index
+                bitBoards[WHITE] += 1 << square_index
             else:
-                bitBoards[BLACK] += 2 ** sqaure_index
+                bitBoards[BLACK] += 1 << square_index
             piece = piece.upper()
             # Sort piece into pawn/orthogonal/diagonal
             if piece == "P":
-                bitBoards[PAWNS] += 2 ** sqaure_index
-            if piece == "R" or piece == "Q":
-                bitBoards[ORTHOGONALS] += 2 ** sqaure_index
-            if piece == "B" or piece == "Q" :
-                bitBoards[DIAGONALS] += 2 ** sqaure_index
+                bitBoards[PAWNS] += 1 << square_index
+            if piece in ["R", "Q"]:
+                bitBoards[ORTHOGONALS] += 1 << square_index
+            if piece in ["B", "Q"]:
+                bitBoards[DIAGONALS] += 1 << square_index
             if piece == 'N':
-                bitBoards[KNIGHTS] += 2 ** sqaure_index
+                bitBoards[KNIGHTS] += 1 << square_index
             if piece == 'K':
-                bitBoards[KINGS] += 2 ** sqaure_index
+                bitBoards[KINGS] += 1 << square_index
 
-            sqaure_index += 1
-          
-    return [bitboard for bitboard in bitBoards]
+            square_index += 1
+
+    return list(bitBoards)
