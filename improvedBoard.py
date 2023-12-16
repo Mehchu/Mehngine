@@ -137,9 +137,6 @@ class Board:
         if piece == 'P' and targetSquare == self.en_passant_target_square:  # White en passant capture
             # Remove the captured pawn
             self.bitboards[PieceType.PAWNS.value] &= ~(1 << (targetSquare - 8))
-        elif piece == 'p' and targetSquare == self.en_passant_target_square:  # Black en passant capture
-            # Remove the captured pawn
-            self.bitboards[PieceType.PAWNS.value] &= ~(1 << (targetSquare + 8))
             
         # Update en passant target square
         self.updateEnPassantTargetSquare(startSquare, targetSquare)
@@ -177,12 +174,13 @@ class Board:
         for offset in direction_offsets:
             new_square = square + offset
             while isSquareOnBoard(new_square) and abs(getFile(new_square) - getFile(new_square - offset)) <= 1 and abs(getRank(new_square) - getRank(new_square - offset)) <= 1:
-                if 1 << new_square & occupancy_mask:
-                    if 1 << new_square & own_pieces:
-                        moves |= 1 << new_square
+                if 1 << new_square & occupancy_mask: # Detects collision with any piece
+                    if not 1 << new_square & own_pieces: # Checks if collision is not with own pieces
+                        moves |= 1 << new_square # Allows that piece to be captured
                     break
                 moves |= 1 << new_square
                 new_square += offset
+        
         
         return moves
 
@@ -200,10 +198,10 @@ class Board:
     def generatePawnMoves(self, ocuupancyMask: int, blackPieces: int, square: int) -> int:
         pawnMoves = 0
         # Find forward pawn moves
-        if 1 << (square - 8) & ocuupancyMask == 0 and isSquareOnBoard(square - 8):
+        if not 1 << (square - 8) & ocuupancyMask and isSquareOnBoard(square - 8):
             pawnMoves |= 1 << (square - 8)
 
-            if getRank(square) == 6:  # If the pawn is still on starting rank
+            if getRank(square) == 6 and not 1 << (square - 16) & ocuupancyMask:  # If the pawn is still on starting rank
                 pawnMoves |= 1 << (square - 16)
 
         # Find captures
@@ -215,12 +213,11 @@ class Board:
 
         return pawnMoves
     
+    
     def updateEnPassantTargetSquare(self, startSquare: int, targetSquare: int):
         piece = self.determinePieceOnSquare(startSquare)
         if piece == 'P' and abs(startSquare - targetSquare) == 16:  # White pawn double move
             self.en_passant_target_square = targetSquare - 8
-        elif piece == 'p' and abs(startSquare - targetSquare) == 16:  # Black pawn double move
-            self.en_passant_target_square = targetSquare + 8
         else:
             self.en_passant_target_square = None
 
@@ -324,28 +321,36 @@ class Board:
     def flipAllBoards(self):
         for i in range(self.numberOfBitboards):
             self.bitboards[i] = self.flip_bitboard(self.bitboards[i])
-            
+        
+        white = self.bitboards[PieceType.WHITE.value]
+        self.bitboards[PieceType.WHITE.value] = self.bitboards[PieceType.BLACK.value]
+        self.bitboards[PieceType.BLACK.value] = white
         
 
     def negamax(self, depth: int, alpha, beta) -> tuple[float, list]:
+        # Oliwier is cool
         if depth == 0 or self.gameState != 0:
             return self.evaluate(), None
 
-        max_value = -inf
+        searchBoard = deepcopy(self)
+
+        max_value = -999
         best_move = None
 
-        for move in self.generateAllLegalMoves():
-            self.makeMove(move[0], move[1])
-            self.flipAllBoards()
-            value, _ = self.negamax(depth - 1, -beta, -alpha)
-            self.undoMove()
+        for move in searchBoard.generateAllLegalMoves():
+            searchBoard.makeMove(move[0], move[1]) # Makes the move
+            searchBoard.flipAllBoards() # Makes it black to play
+            value, _ = searchBoard.negamax(depth - 1, -beta, -alpha) # Recursively calls itself on the new position with black to play
+            searchBoard.undoMove()
 
             if -value > max_value:
                 max_value = -value
                 best_move = move
 
+            
             alpha = max(alpha, -value)
             if alpha >= beta:
                 break
+            
 
         return max_value, best_move
