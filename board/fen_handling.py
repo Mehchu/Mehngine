@@ -66,3 +66,94 @@ def fen_to_bitboards(fen):
     )
 
     return bitboards
+
+
+def bitboards_to_fen(bitboards):
+    # Mapping of piece types to FEN abbreviations
+    piece_mapping = {0: "p", 1: "n", 2: "b", 3: "r", 4: "q", 5: "k"}
+
+    # Extract bitboards for each piece type, all white pieces, all black pieces, castling rights, and en passant target
+    (
+        pawn_board,
+        knight_board,
+        bishop_board,
+        rook_board,
+        queen_board,
+        king_board,
+        white_pieces_board,
+        black_pieces_board,
+        castling_rights,
+        en_passant_target,
+    ) = bitboards
+
+    # Convert bitboards to FEN piece placement
+    piece_placement = ""
+    for rank in range(7, -1, -1):  # Loop through ranks in reverse order
+        empty_count = 0  # Count consecutive empty squares
+        for file in range(8):
+            square = rank * 8 + file
+            piece = next(
+                (
+                    piece_mapping[piece_type]
+                    for piece_type, piece_board in enumerate(
+                        [
+                            pawn_board,
+                            knight_board,
+                            bishop_board,
+                            rook_board,
+                            queen_board,
+                            king_board,
+                        ]
+                    )
+                    if (piece_board & np.uint64(1) << np.uint64(square)) != 0
+                ),
+                None,
+            )
+            if piece is not None:
+                # Piece found, append empty count and piece to FEN
+                if empty_count > 0:
+                    piece_placement += str(empty_count)
+                    empty_count = 0
+                piece_placement += piece
+            else:
+                # Empty square, increase empty count
+                empty_count += 1
+
+        if empty_count > 0:
+            # Append remaining empty count for the rank
+            piece_placement += str(empty_count)
+
+        if rank > 0:
+            # Separate ranks with '/'
+            piece_placement += "/"
+
+    # Determine active color
+    active_color = "w" if white_pieces_board != 0 else "b"
+
+    # Determine castling rights in FEN
+    castling_fen = ""
+    if castling_rights & np.uint64(0b1000):
+        castling_fen += "K"
+    if castling_rights & np.uint64(0b0100):
+        castling_fen += "Q"
+    if castling_rights & np.uint64(0b0010):
+        castling_fen += "k"
+    if castling_rights & np.uint64(0b0001):
+        castling_fen += "q"
+
+    # Determine en passant target square in FEN
+    en_passant_fen = (
+        "-"
+        if en_passant_target == 0
+        else f"{chr((en_passant_target % 8) + ord('a'))}{8 - (en_passant_target // 8)}"
+    )
+
+    return f"{piece_placement} {active_color} {castling_fen} {en_passant_fen} 0 1"
+
+
+fen_string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+bitboard_array = fen_to_bitboards(fen_string)
+converted_fen = bitboards_to_fen(bitboard_array)
+
+print("Original FEN:", fen_string)
+print("Converted FEN:", converted_fen)
