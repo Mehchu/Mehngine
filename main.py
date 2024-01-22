@@ -1,30 +1,39 @@
-from improvedBoard import Board
-from fenManipulation import fenToArray
-from math import inf
+from board.board_representation import ChessBoard
+from board.square_handling import decode_square
 
-STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 TEST_FEN = "rnbqkbnr/ppppp2p/5p2/6p1/4P3/8/PPPP1PPP/RNBQKBNR"
-OTHER_TEST_FEN = "3Q4/8/k1K5/8/8/8/8/8"
+OTHER_TEST_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+
+def printBitboard(board: int) -> str:
+    binBoard = bin(board)[2:]  # Remove the 0b which starts all binary strings
+
+    while (
+        len(binBoard) < 64
+    ):  # Ensure binary is the required 64 bits long to be printed
+        binBoard = f"0{binBoard}"
+
+    count = 0
+    stringToPrint = ""
+
+    for square in binBoard:
+        stringToPrint += f"{square} "
+        count += 1
+
+        if count == 8:  # Go onto a new line each time a file is filled
+            stringToPrint += "\n"
+            count = 0
+
+    return stringToPrint
+
 
 def main():
-    position = Board(OTHER_TEST_FEN)
-    
-    print(position.negamax(5, -inf, inf)) # Should always be a multiple of two
-    
-    
-    
-def printArrays(arrays):
-    border = "-" * 26
-    print(border)
-    for array in arrays:
-        print("| " + " ".join(str(element) for element in array) + " |")
-    print(border[:-1])
-            
+    position = ChessBoard(STARTING_FEN)
+    position.display_board()
+
+    print(position.determine_piece_on_square(decode_square("e8")))
+
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
