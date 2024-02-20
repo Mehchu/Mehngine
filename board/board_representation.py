@@ -155,8 +155,8 @@ class ChessBoard:
             if not isOnBoard(new_square):
                 break
 
-            if 1 << new_square & self.occupancy_mask:
-                if 1 << new_square & self.black_pieces:
+            if np.uint64(1 << new_square) & self.occupancy_mask:
+                if np.uint64(1 << new_square) & self.black_pieces:
                     move_list.append(
                         f"{encode_square(square)}{encode_square(new_square)}"
                     )
@@ -173,8 +173,8 @@ class ChessBoard:
             if not isOnBoard(new_square):
                 break
 
-            if 1 << new_square & self.occupancy_mask:
-                if 1 << new_square & self.black_pieces:
+            if np.uint64(1 << new_square) & self.occupancy_mask:
+                if np.uint64(1 << new_square) & self.black_pieces:
                     move_list.append(
                         f"{encode_square(square)}{encode_square(new_square)}"
                     )
@@ -191,8 +191,8 @@ class ChessBoard:
             if not isOnBoard(new_square) or square // 8 != new_square // 8:
                 break
 
-            if 1 << new_square & self.occupancy_mask:
-                if 1 << new_square & self.black_pieces:
+            if np.uint64(1 << new_square) & self.occupancy_mask:
+                if np.uint64(1 << new_square) & self.black_pieces:
                     move_list.append(
                         f"{encode_square(square)}{encode_square(new_square)}"
                     )
@@ -209,8 +209,8 @@ class ChessBoard:
             if not isOnBoard(new_square) or square // 8 != new_square // 8:
                 break
 
-            if 1 << new_square & self.occupancy_mask:
-                if 1 << new_square & self.black_pieces:
+            if np.uint64(1 << new_square) & self.occupancy_mask:
+                if np.uint64(1 << new_square) & self.black_pieces:
                     move_list.append(
                         f"{encode_square(square)}{encode_square(new_square)}"
                     )
@@ -234,8 +234,8 @@ class ChessBoard:
             ):
                 break
 
-            if 1 << new_square & self.occupancy_mask:
-                if 1 << new_square & self.black_pieces:
+            if np.uint64(1 << new_square) & self.occupancy_mask:
+                if np.uint64(1 << new_square) & self.black_pieces:
                     move_list.append(
                         f"{encode_square(square)}{encode_square(new_square)}"
                     )
@@ -254,8 +254,8 @@ class ChessBoard:
             ):
                 break
 
-            if 1 << new_square & self.occupancy_mask:
-                if 1 << new_square & self.black_pieces:
+            if np.uint64(1 << new_square) & self.occupancy_mask:
+                if np.uint64(1 << new_square) & self.black_pieces:
                     move_list.append(
                         f"{encode_square(square)}{encode_square(new_square)}"
                     )
@@ -274,8 +274,8 @@ class ChessBoard:
             ):
                 break
 
-            if 1 << new_square & self.occupancy_mask:
-                if 1 << new_square & self.black_pieces:
+            if np.uint64(1 << new_square) & self.occupancy_mask:
+                if np.uint64(1 << new_square) & self.black_pieces:
                     move_list.append(
                         f"{encode_square(square)}{encode_square(new_square)}"
                     )
@@ -294,8 +294,8 @@ class ChessBoard:
             ):
                 break
 
-            if 1 << new_square & self.occupancy_mask:
-                if 1 << new_square & self.black_pieces:
+            if np.uint64(1 << new_square) & self.occupancy_mask:
+                if np.uint64(1 << new_square) & self.black_pieces:
                     move_list.append(
                         f"{encode_square(square)}{encode_square(new_square)}"
                     )
@@ -313,7 +313,7 @@ class ChessBoard:
             for offset in offsets
             if (
                 isOnBoard(square + offset)
-                and not 1 << (square + offset) & self.white_pieces
+                and not np.uint64(1 << (square + offset)) & self.white_pieces
             )
         ]
 
@@ -325,7 +325,7 @@ class ChessBoard:
             for offset in offsets
             if (
                 isOnBoard(square + offset)
-                and not 1 << (square + offset) & self.white_pieces
+                and not np.uint64(1 << (square + offset)) & self.white_pieces
             )
         ]
 
@@ -448,10 +448,10 @@ class ChessBoard:
             if piece == -1:
                 continue
 
-            if 1 << square & self.white_pieces != 0:
+            if np.uint64(1 << square) & self.white_pieces != 0:
                 evaluation += self.pieceValue[piece]
 
-            if 1 << square & self.black_pieces != 0:
+            if np.uint64(1 << square) & self.black_pieces != 0:
                 evaluation += self.pieceValue[piece]
 
         return evaluation
