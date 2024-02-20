@@ -1,34 +1,6 @@
 import numpy as np
 
 
-def fen_to_arrays(fen):
-    array = []
-    fen = fen.split()[0]
-    fen = fen.split("/")
-    for rows in fen:
-        row = []
-        for square in rows:
-            if square.upper() in "PNBRQK":
-                row.append(square)
-            elif square.isdigit():
-                row.extend(" " for _ in range(int(square)))
-        array.append(row)
-    return array
-
-
-def print_fen_array(fen_array):
-    border = "-" * 19
-    print(border)
-    for array in fen_array:
-        print("| " + " ".join(str(element) for element in array) + " |")
-    print(border)
-
-
-def display_fen(fen):
-    fen = fen_to_arrays(fen)
-    fen = print_fen_array(fen)
-
-
 def fen_to_bitboards(fen):
     # Mapping of FEN piece abbreviations to piece types
     piece_mapping = {"p": 0, "n": 1, "b": 2, "r": 3, "q": 4, "k": 5}
@@ -36,11 +8,11 @@ def fen_to_bitboards(fen):
     castling_mapping = {"K": 0b1000, "Q": 0b0100, "k": 0b0010, "q": 0b0001}
 
     # Initialize bitboards for each piece type, all white pieces, and all black pieces
-    bitboards = [(0)] * 6
-    white_pieces = 0
-    black_pieces = 0
+    bitboards = [np.uint64(0)] * 6
+    white_pieces = np.uint64(0)
+    black_pieces = np.uint64(0)
     castling_rights = 0b0000  # 4-bit integer for castling rights
-    en_passant_square = 0
+    en_passant_square = np.uint(0)
 
     # Extract the piece placement part of the FEN
     piece_placement = fen.split()[0]
@@ -59,13 +31,15 @@ def fen_to_bitboards(fen):
                 piece_type = piece_mapping[char.lower()]
 
                 # Set the corresponding bit in the bitboard
-                bitboards[piece_type] |= (1) << (rank * 8 + file_index)
+                bitboards[piece_type] |= np.uint64(1) << np.uint64(
+                    rank * 8 + file_index
+                )
 
                 # Set the bit in the all white or all black pieces bitboards
                 if char.isupper():  # White piece
-                    white_pieces |= (1) << (rank * 8 + file_index)
+                    white_pieces |= np.uint64(1) << np.uint64(rank * 8 + file_index)
                 else:  # Black piece
-                    black_pieces |= (1) << (rank * 8 + file_index)
+                    black_pieces |= np.uint64(1) << np.uint64(rank * 8 + file_index)
 
                 file_index += 1
 
@@ -86,16 +60,18 @@ def fen_to_bitboards(fen):
         [
             white_pieces,
             black_pieces,
-            (castling_rights),
-            (en_passant_square),
+            np.uint64(castling_rights),
+            np.uint64(en_passant_square),
         ]
     )
+
     return bitboards
 
 
 def bitboards_to_fen(bitboards):
     # Mapping of piece types to FEN abbreviations
     piece_mapping = {0: "p", 1: "n", 2: "b", 3: "r", 4: "q", 5: "k"}
+
     # Extract bitboards for each piece type, all white pieces, all black pieces, castling rights, and en passant target
     (
         pawn_board,
@@ -129,15 +105,11 @@ def bitboards_to_fen(bitboards):
                             king_board,
                         ]
                     )
-                    if (np.uint64(piece_board) & np.uint64((1 << square))) != 0
+                    if (piece_board & np.uint64(1) << np.uint64(square)) != 0
                 ),
                 None,
             )
-
             if piece is not None:
-                if np.uint64(white_pieces_board) & np.uint64(1 << square) != 0:
-                    piece = piece.upper()
-
                 # Piece found, append empty count and piece to FEN
                 if empty_count > 0:
                     piece_placement += str(empty_count)
@@ -160,7 +132,6 @@ def bitboards_to_fen(bitboards):
 
     # Determine castling rights in FEN
     castling_fen = ""
-    castling_rights = np.uint64(castling_rights)
     if castling_rights & np.uint64(0b1000):
         castling_fen += "K"
     if castling_rights & np.uint64(0b0100):

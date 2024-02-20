@@ -1,7 +1,14 @@
 import numpy as np
 from enum import Enum
+from copy import deepcopy
 
-from board.fen_handling import fen_to_bitboards, bitboards_to_fen, display_fen
+from board.fen_handling import fen_to_bitboards, bitboards_to_fen
+from board.square_handling import (
+    decompose_notation,
+    decode_square,
+    encode_square,
+    isOnBoard,
+)
 
 
 class PieceType(Enum):
@@ -40,69 +47,441 @@ class ChessBoard:
         # Collect all bitboards into a NumPy array
         self.all_bitboards = np.array(
             [
-                self.pawns,
-                self.knights,
-                self.bishops,
-                self.rooks,
-                self.queens,
-                self.kings,
-                self.white_pieces,
-                self.black_pieces,
-                self.castling_rights,
-                self.en_passant_target,
-                self.occupancy_mask,
-                self.attacked_squares,
-                self.pawn_structure,
+                self.pawns,  # 0
+                self.knights,  # 1
+                self.bishops,  # 2
+                self.rooks,  # 3
+                self.queens,  # 4
+                self.kings,  # 5
+                self.white_pieces,  # 6
+                self.black_pieces,  # 7
+                self.castling_rights,  # 8
+                self.en_passant_target,  # 9
+                self.occupancy_mask,  # 10
+                self.attacked_squares,  # 11
+                self.pawn_structure,  # 12
             ],
             dtype=np.uint64,
         )
 
-    def make_move(self, long_algebraic_notation):
+        self.previous_position = self.all_bitboards.copy()  # TODO: make better
+
+        self.pieceValue = {
+            "P": 1,
+            "N": 3,
+            "B": 3,
+            "R": 5,
+            "Q": 9,
+            "K": 99,
+            "p": -1,
+            "n": -3,
+            "b": -3,
+            "r": -5,
+            "q": -9,
+            "k": -99,
+        }
+
+    def make_move(self, long_algebraic_notation):  # TODO: Update misc bitboards
+        self.previous_position = self.all_bitboards.copy()  # TODO: make better
+
         start_square, end_square, promotion_piece = decompose_notation(
             long_algebraic_notation
         )
 
-        for bitboard in self.all_bitboards:
-            pass
+        piece = self.determine_piece_on_square(start_square)
+
+        if piece is None:
+            return
+
+        # Delete the piece, if any, on the end square
+        for index in range(8):
+            self.all_bitboards[index] = ~(
+                ~self.all_bitboards[index] | np.uint64(1 << end_square)
+            )
+
+        bitboard_index = PieceType[piece.upper()].value
+
+        # Move the moving piece
+        self.all_bitboards[bitboard_index] = ~(
+            ~self.all_bitboards[bitboard_index] | np.uint64(1 << start_square)
+        )
+        self.all_bitboards[bitboard_index] |= np.uint64(1 << end_square)
+
+        # Update coloured bitboards
+        if piece.isupper():
+            self.all_bitboards[6] = ~(
+                ~self.all_bitboards[6] | np.uint64(1 << start_square)
+            )
+            self.all_bitboards[6] |= np.uint64(1 << end_square)
+        else:
+            self.all_bitboards[7] = ~(
+                ~self.all_bitboards[7] | np.uint64(1 << start_square)
+            )
+            self.all_bitboards[7] |= np.uint64(1 << end_square)
+
+        # Update misc
+        self.en_passant_target = 0
+
+        if piece.upper() == "P" and abs(end_square // 8 - start_square // 8) == 2:
+            self.en_passant_target = end_square
+
+    def undoMove(self):  # Returns the board to its previous position TODO: Make better
+        self.bitboards = self.previous_position.copy()
 
     def determine_piece_on_square(self, square):
+        piece = None
+
         for index, bitboard in enumerate(self.all_bitboards[:6]):
             if bitboard & np.uint64(1 << square):
-                break
+                piece = PieceType(index).name
 
-        piece = PieceType(index).name
-
-        print(printBitboard(self.black_pieces))
-
-        if self.black_pieces & np.uint64(1 << square):
-            print("Hola")
-            return piece.lower()
+                if np.uint64(self.black_pieces) & np.uint64(1 << square):
+                    return piece.lower()
 
         return piece
 
+    def generateOccupancyMask(self):
+        self.occupancy_mask = self.white_pieces | self.black_pieces
+
+    def generateOrthogonalMoves(self, square):  # #TODO: Change to offset method
+        move_list = []
+
+        new_square = square
+
+        # Moves up
+        for _ in range(8):
+            new_square += 8
+
+            if not isOnBoard(new_square):
+                break
+
+            if 1 << new_square & self.occupancy_mask:
+                if 1 << new_square & self.black_pieces:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+                break
+
+            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+        new_square = square
+
+        # Moves down
+        for _ in range(8):
+            new_square -= 8
+
+            if not isOnBoard(new_square):
+                break
+
+            if 1 << new_square & self.occupancy_mask:
+                if 1 << new_square & self.black_pieces:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+                break
+
+            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+        new_square = square
+
+        # Moves right
+        for _ in range(8):
+            new_square += 1
+
+            if not isOnBoard(new_square) or square // 8 != new_square // 8:
+                break
+
+            if 1 << new_square & self.occupancy_mask:
+                if 1 << new_square & self.black_pieces:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+                break
+
+            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+        new_square = square
+
+        # Moves left
+        for _ in range(8):
+            new_square -= 1
+
+            if not isOnBoard(new_square) or square // 8 != new_square // 8:
+                break
+
+            if 1 << new_square & self.occupancy_mask:
+                if 1 << new_square & self.black_pieces:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+                break
+
+            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+        return move_list
+
+    def generateDiagonalMoves(self, square):
+        move_list = []
+
+        new_square = square
+
+        # Moves NE
+        for _ in range(8):
+            new_square += 9
+
+            if not isOnBoard(new_square) or (new_square // 8 - square // 8) != (
+                new_square % 8 - square % 8
+            ):
+                break
+
+            if 1 << new_square & self.occupancy_mask:
+                if 1 << new_square & self.black_pieces:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+                break
+
+            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+        new_square = square
+
+        # Moves NW
+        for _ in range(8):
+            new_square += 7
+
+            if not isOnBoard(new_square) or (new_square // 8 - square // 8) != (
+                new_square % 8 - square % 8
+            ):
+                break
+
+            if 1 << new_square & self.occupancy_mask:
+                if 1 << new_square & self.black_pieces:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+                break
+
+            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+        new_square = square
+
+        # Moves SE
+        for _ in range(8):
+            new_square -= 9
+
+            if not isOnBoard(new_square) or (new_square // 8 - square // 8) != (
+                new_square % 8 - square % 8
+            ):
+                break
+
+            if 1 << new_square & self.occupancy_mask:
+                if 1 << new_square & self.black_pieces:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+                break
+
+            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+        new_square = square
+
+        # Moves SW
+        for _ in range(8):
+            new_square -= 7
+
+            if not isOnBoard(new_square) or (new_square // 8 - square // 8) != (
+                new_square % 8 - square % 8
+            ):
+                break
+
+            if 1 << new_square & self.occupancy_mask:
+                if 1 << new_square & self.black_pieces:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+                break
+
+            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+        return move_list
+
+    def generateKnightMoves(self, square):
+        offsets = [-17, -15, -10, -6, 6, 10, 15, 17]
+
+        return [
+            f"{encode_square(square)}{encode_square(square + offset)}"
+            for offset in offsets
+            if (
+                isOnBoard(square + offset)
+                and not 1 << (square + offset) & self.white_pieces
+            )
+        ]
+
+    def generateKingMoves(self, square):
+        offsets = [1, -1, -8, -8, 9, -9, 7, -7]
+
+        return [
+            f"{encode_square(square)}{encode_square(square + offset)}"
+            for offset in offsets
+            if (
+                isOnBoard(square + offset)
+                and not 1 << (square + offset) & self.white_pieces
+            )
+        ]
+
+    def generatePawnMoves(self, square):
+        move_list = []
+        # Find forward pawn moves
+        if not np.uint64(1 << (square + 8)) & self.occupancy_mask and isOnBoard(
+            square + 8
+        ):
+            if (
+                square // 8 == 1
+                and not np.uint64(1 << (square + 16)) & self.occupancy_mask
+            ):  # If the pawn is still on starting rank
+                move_list.append(f"{encode_square(square)}{encode_square(square + 16)}")
+
+            # Handle promotion
+            if (square + 8) // 8 == 7:
+                move_list.extend(
+                    f"{encode_square(square)}{encode_square(square + 8)}{piece.name}"
+                    for piece in PieceType
+                    if piece.name != "P"
+                )
+            else:  # Move forward normally
+                move_list.append(f"{encode_square(square)}{encode_square(square + 8)}")
+
+        # Find captures
+        if np.uint64(1 << (square + 7)) & self.black_pieces:
+            # Handle promotion
+            if (square + 7) // 8 == 7:
+                move_list.extend(
+                    f"{encode_square(square)}{encode_square(square + 7)}{piece.name}"
+                    for piece in PieceType[1:]
+                )
+            else:
+                move_list.append(f"{encode_square(square)}{encode_square(square + 7)}")
+
+        if np.uint64(1 << (square + 9)) & self.black_pieces:
+            # Handle promotion
+            if (square + 9) // 8 == 7:
+                move_list.extend(
+                    f"{encode_square(square)}{encode_square(square + 9)}{piece.name}"
+                    for piece in PieceType[1:]
+                )
+            else:
+                move_list.append(f"{encode_square(square)}{encode_square(square + 9)}")
+
+        # Handle en passant
+        if square // 8 == self.en_passant_target // 8 and (
+            (1 << square - 1) & (1 << self.en_passant_target)
+            or (1 << square + 1) & (1 << self.en_passant_target)
+        ):
+            move_list.append(
+                f"{encode_square(square)}{encode_square(self.en_passant_target + 8)}"
+            )
+
+        return move_list
+
+    def generatePieceMoves(self, square: int) -> list:
+        move_list = []
+        piece = self.determine_piece_on_square(square)
+
+        match piece:
+            case "K":
+                move_list.extend(self.generateKingMoves(square))
+            case "Q":
+                move_list.extend(self.generateOrthogonalMoves(square))
+                move_list.extend(self.generateDiagonalMoves(square))
+            case "R":
+                move_list = self.generateOrthogonalMoves(square)
+            case "B":
+                move_list = self.generateDiagonalMoves(square)
+            case "N":
+                move_list = self.generateKnightMoves(square)
+            case "P":
+                move_list = self.generatePawnMoves(square)
+
+        return move_list
+
+    def generateAllLegalMoves(self):
+        all_moves = []
+
+        for square in range(64):
+            if np.uint64(1 << square) & self.white_pieces:
+                all_moves.extend(self.generatePieceMoves(square))
+
+        return all_moves
+
+    def flip_bitboard(
+        self, bitboard
+    ):  # Flips a bitboard to be from black's perspective TODO: make better
+        bitboard = int(bitboard)
+        h1 = 0x5555555555555555
+        h2 = 0x3333333333333333
+        h4 = 0x0F0F0F0F0F0F0F0F
+        v1 = 0x00FF00FF00FF00FF
+        v2 = 0x0000FFFF0000FFFF
+
+        bitboard = ((bitboard >> 1) & h1) | ((bitboard & h1) << 1)
+        bitboard = ((bitboard >> 2) & h2) | ((bitboard & h2) << 2)
+        bitboard = ((bitboard >> 4) & h4) | ((bitboard & h4) << 4)
+        bitboard = ((bitboard >> 8) & v1) | ((bitboard & v1) << 8)
+        bitboard = ((bitboard >> 16) & v2) | ((bitboard & v2) << 16)
+        bitboard = (bitboard >> 64) | (bitboard << 64)
+        return bitboard & 0xFFFFFFFFFFFFFFFF
+
+    def flipAllBoards(self):
+        for i in range(len(self.all_bitboards)):
+            self.all_bitboards[i] = self.flip_bitboard(self.all_bitboards[i])
+
+        white = self.white_pieces
+        self.white_pieces = self.black_pieces
+        self.white_pieces = white
+
+    def evaluate(self) -> float:
+        evaluation = 0.0
+
+        for square in range(64):
+            piece = self.determine_piece_on_square(square)
+
+            if piece == -1:
+                continue
+
+            if 1 << square & self.white_pieces != 0:
+                evaluation += self.pieceValue[piece]
+
+            if 1 << square & self.black_pieces != 0:
+                evaluation += self.pieceValue[piece]
+
+        return evaluation
+
+    def negamax(self, depth: int, alpha, beta) -> tuple[float, list]:
+        if depth == 0:  # TODO: Implement end of game check
+            return self.evaluate(), None
+
+        searchBoard = deepcopy(self)
+
+        max_value = -999
+        best_move = ""
+
+        for move in searchBoard.generateAllLegalMoves():
+            searchBoard.make_move(move)  # Makes the move
+            searchBoard.flipAllBoards()  # Makes it black to play
+            value, _ = searchBoard.negamax(
+                depth - 1, -beta, -alpha
+            )  # Recursively calls itself on the new position with black to play
+            searchBoard.undoMove()
+
+            if -value > max_value:
+                max_value = -value
+                best_move = move
+
+            alpha = max(alpha, -value)
+            if alpha >= beta:
+                break
+
+        return max_value, best_move
+
     def display_board(self):
         fen = bitboards_to_fen(self.all_bitboards[:10])
-        print(fen)
-        display_fen(fen)
-
-
-def printBitboard(board: int) -> str:
-    binBoard = bin(board)[2:]  # Remove the 0b which starts all binary strings
-
-    while (
-        len(binBoard) < 64
-    ):  # Ensure binary is the required 64 bits long to be printed
-        binBoard = f"0{binBoard}"
-
-    count = 0
-    stringToPrint = ""
-
-    for square in binBoard:
-        stringToPrint += f"{square} "
-        count += 1
-
-        if count == 8:  # Go onto a new line each time a file is filled
-            stringToPrint += "\n"
-            count = 0
-
-    return stringToPrint
