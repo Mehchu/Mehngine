@@ -64,7 +64,6 @@ def fen_to_bitboards(fen):
             np.uint64(en_passant_square),
         ]
     )
-    print(white_pieces)
     return bitboards
 
 
