@@ -183,11 +183,3 @@ def display_chess_position(fen):
             else:
                 display_row.append(char)
         print(" ".join(display_row))
-
-
-STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-x = fen_to_bitboards(STARTING_FEN)
-y = bitboards_to_fen(x)
-
-display_chess_position(STARTING_FEN)
-print(y)
