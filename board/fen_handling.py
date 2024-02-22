@@ -64,7 +64,7 @@ def fen_to_bitboards(fen):
             np.uint64(en_passant_square),
         ]
     )
-
+    print(white_pieces)
     return bitboards
 
 
@@ -105,7 +105,7 @@ def bitboards_to_fen(bitboards):
                             king_board,
                         ]
                     )
-                    if (piece_board & np.uint64(1) << np.uint64(square)) != 0
+                    if (piece_board & np.uint64(1) << np.uint64(square))
                 ),
                 None,
             )
@@ -114,7 +114,11 @@ def bitboards_to_fen(bitboards):
                 if empty_count > 0:
                     piece_placement += str(empty_count)
                     empty_count = 0
-                piece_placement += piece
+
+                if white_pieces_board & np.uint64(1) << np.uint64(square):
+                    piece_placement += piece.upper()
+                else:
+                    piece_placement += piece
             else:
                 # Empty square, increase empty count
                 empty_count += 1
@@ -149,3 +153,41 @@ def bitboards_to_fen(bitboards):
     )
 
     return f"{piece_placement} {active_color} {castling_fen} {en_passant_fen} 0 1"
+
+
+def display_chess_position(fen):
+    # Create a mapping for piece characters
+    piece_mapping = {
+        "r": "♜",
+        "n": "♞",
+        "b": "♝",
+        "q": "♛",
+        "k": "♚",
+        "p": "♟",
+        "R": "♖",
+        "N": "♘",
+        "B": "♗",
+        "Q": "♕",
+        "K": "♔",
+        "P": "♙",
+        ".": "·",
+    }
+
+    # Parse FEN string
+    rows = fen.split()[0].split("/")
+    for row in reversed(rows):
+        display_row = []
+        for char in row:
+            if char.isdigit():
+                display_row.extend(["·"] * int(char))
+            else:
+                display_row.append(char)
+        print(" ".join(display_row))
+
+
+STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+x = fen_to_bitboards(STARTING_FEN)
+y = bitboards_to_fen(x)
+
+display_chess_position(STARTING_FEN)
+print(y)
