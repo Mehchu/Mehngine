@@ -28,42 +28,26 @@ class ChessBoard:
     def __init__(self, fen) -> None:
         # Convert the inputted fen to an array of binary integers
         temporary_bitboards = fen_to_bitboards(fen)
-        # Initialise bitboards for each piece type using NumPy's unsigned integers for better performance
-        self.pawns = temporary_bitboards[0]
-        self.knights = temporary_bitboards[1]
-        self.bishops = temporary_bitboards[2]
 
-        self.rooks = temporary_bitboards[3]
-        self.queens = temporary_bitboards[4]
-        self.kings = temporary_bitboards[5]
-
-        # Initialise general bitboards for each side and the board overall
-        self.white_pieces = temporary_bitboards[6]
-        self.black_pieces = temporary_bitboards[7]
-        self.occupancy_mask = self.white_pieces | self.black_pieces
-
-        # Initialise miscellaneous bitboards for special moves and nuanced evaluation
-        self.attacked_squares = 0  # TODO
-        self.pawn_structure = 0  # TODO: Is this really necessary?
-        self.castling_rights = temporary_bitboards[8]
-        self.en_passant_target = temporary_bitboards[9]
-
-        # Collect all bitboards into a NumPy array
+        # Collect all bitboards into a NumPy array TODO: Can be done better
         self.all_bitboards = np.array(
             [
-                self.pawns,  # 0
-                self.knights,  # 1
-                self.bishops,  # 2
-                self.rooks,  # 3
-                self.queens,  # 4
-                self.kings,  # 5
-                self.white_pieces,  # 6
-                self.black_pieces,  # 7
-                self.castling_rights,  # 8
-                self.en_passant_target,  # 9
-                self.occupancy_mask,  # 10
-                self.attacked_squares,  # 11
-                self.pawn_structure,  # 12
+                # Initialise bitboards for each piece type using NumPy's unsigned integers for better performance
+                temporary_bitboards[0],  # Pawns, 0
+                temporary_bitboards[1],  # Knights, 1
+                temporary_bitboards[2],  # Bishops, 2
+                temporary_bitboards[3],  # Rooks, 3
+                temporary_bitboards[4],  # Queens, 4
+                temporary_bitboards[5],  # Kings, 5
+                # Initialise general bitboards for each side and the board overall
+                temporary_bitboards[6],  # White, 6
+                temporary_bitboards[7],  # Black, 7
+                # Initialise miscellaneous bitboards for special moves and nuanced evaluation
+                temporary_bitboards[8],  # Castling, 8
+                temporary_bitboards[9],  # En passant, 9
+                temporary_bitboards[6] | temporary_bitboards[7],  # Occupancy mask, 10
+                0,  # Attacked squares, 11 # TODO
+                0,  # Pawn structure, 12 # TODO
             ],
             dtype=np.uint64,
         )
@@ -111,10 +95,12 @@ class ChessBoard:
             ~self.all_bitboards[bitboard_index] | np.uint64(1 << start_square)
         )
 
+        # Update the targeted bitboard for the new piece if applicable
         if promotion_piece != None:
             piece = promotion_piece
             bitboard_index = PieceType[piece.upper()].value
 
+        # Updates the target bitboard with the new piece on the end square
         self.all_bitboards[bitboard_index] |= np.uint64(1 << end_square)
 
         # Update coloured bitboards
@@ -130,13 +116,14 @@ class ChessBoard:
             self.all_bitboards[7] |= np.uint64(1 << end_square)
 
         # Update misc
-        self.en_passant_target = 0
+        self.all_bitboards[9] = 0
+        self.updateOccupancyMask()
 
         if piece.upper() == "P" and abs(end_square // 8 - start_square // 8) == 2:
-            self.en_passant_target = end_square
+            self.all_bitboards[9] = end_square
 
     def undoMove(self):  # Returns the board to its previous position TODO: Make better
-        self.bitboards = self.previous_position.copy()
+        self.all_bitboards = self.previous_position.copy()
 
     def determine_piece_on_square(self, square):
         piece = None
@@ -145,13 +132,13 @@ class ChessBoard:
             if bitboard & np.uint64(1 << square):
                 piece = PieceType(index).name
 
-                if np.uint64(self.black_pieces) & np.uint64(1 << square):
+                if np.uint64(self.all_bitboards[7]) & np.uint64(1 << square):
                     return piece.lower()
 
         return piece
 
-    def generateOccupancyMask(self):
-        self.occupancy_mask = self.white_pieces | self.black_pieces
+    def updateOccupancyMask(self):
+        self.all_bitboards[10] = self.all_bitboards[6] | self.all_bitboards[7]
 
     def generateOrthogonalMoves(self, square):  # #TODO: Change to offset method
         move_list = []
@@ -172,8 +159,8 @@ class ChessBoard:
                 ):
                     break
 
-                if np.uint64(1 << new_square) & self.occupancy_mask:
-                    if np.uint64(1 << new_square) & self.black_pieces:
+                if np.uint64(1 << new_square) & self.all_bitboards[10]:
+                    if np.uint64(1 << new_square) & self.all_bitboards[7]:
                         move_list.append(
                             f"{encode_square(square)}{encode_square(new_square)}"
                         )
@@ -199,8 +186,8 @@ class ChessBoard:
                 ) != abs(new_square % 8 - square % 8):
                     break
 
-                if np.uint64(1 << new_square) & self.occupancy_mask:
-                    if np.uint64(1 << new_square) & self.black_pieces:
+                if np.uint64(1 << new_square) & self.all_bitboards[10]:
+                    if np.uint64(1 << new_square) & self.all_bitboards[7]:
                         move_list.append(
                             f"{encode_square(square)}{encode_square(new_square)}"
                         )
@@ -218,7 +205,7 @@ class ChessBoard:
             for offset in offsets
             if (
                 isOnBoard(square + offset)
-                and not np.uint64(1 << (square + offset)) & self.white_pieces
+                and not np.uint64(1 << (square + offset)) & self.all_bitboards[6]
             )
         ]
 
@@ -230,19 +217,20 @@ class ChessBoard:
             for offset in offsets
             if (
                 isOnBoard(square + offset)
-                and not np.uint64(1 << (square + offset)) & self.white_pieces
+                and not np.uint64(1 << (square + offset)) & self.all_bitboards[6]
             )
         ]
 
     def generatePawnMoves(self, square):
         move_list = []
         # Find forward pawn moves
-        if not np.uint64(1 << (square + 8)) & self.occupancy_mask and isOnBoard(
-            square + 8
+        if (
+            isOnBoard(square + 8)
+            and not np.uint64(1 << (square + 8)) & self.all_bitboards[10]
         ):
             if (
                 square // 8 == 1
-                and not np.uint64(1 << (square + 16)) & self.occupancy_mask
+                and not np.uint64(1 << (square + 16)) & self.all_bitboards[10]
             ):  # If the pawn is still on starting rank
                 move_list.append(f"{encode_square(square)}{encode_square(square + 16)}")
 
@@ -251,39 +239,45 @@ class ChessBoard:
                 move_list.extend(
                     f"{encode_square(square)}{encode_square(square + 8)}{piece.name}"
                     for piece in PieceType
-                    if piece.name != "P"
+                    if piece.name != "P" and piece.name != "K"
                 )
             else:  # Move forward normally
                 move_list.append(f"{encode_square(square)}{encode_square(square + 8)}")
 
         # Find captures
-        if np.uint64(1 << (square + 7)) & self.black_pieces:
+        if np.uint64(1 << (square + 7)) & self.all_bitboards[7]:
             # Handle promotion
             if (square + 7) // 8 == 7:
                 move_list.extend(
                     f"{encode_square(square)}{encode_square(square + 7)}{piece.name}"
-                    for piece in PieceType[1:]
+                    for piece in PieceType
+                    if piece.name != "P" and piece.name != "K"
                 )
             else:
                 move_list.append(f"{encode_square(square)}{encode_square(square + 7)}")
-
-        if np.uint64(1 << (square + 9)) & self.black_pieces:
-            # Handle promotion
-            if (square + 9) // 8 == 7:
-                move_list.extend(
-                    f"{encode_square(square)}{encode_square(square + 9)}{piece.name}"
-                    for piece in PieceType[1:]
-                )
-            else:
-                move_list.append(f"{encode_square(square)}{encode_square(square + 9)}")
+        try:
+            if np.uint64(1 << (square + 9)) & self.all_bitboards[7]:
+                # Handle promotion
+                if (square + 9) // 8 == 7:
+                    move_list.extend(
+                        f"{encode_square(square)}{encode_square(square + 9)}{piece.name}"
+                        for piece in PieceType
+                        if piece.name != "P" and piece.name != "K"
+                    )
+                else:
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(square + 9)}"
+                    )
+        except OverflowError:
+            pass
 
         # Handle en passant
-        if square // 8 == self.en_passant_target // 8 and (
-            (1 << square - 1) & (1 << self.en_passant_target)
-            or (1 << square + 1) & (1 << self.en_passant_target)
+        if square // 8 == self.all_bitboards[9] // 8 and (
+            (1 << square - 1) & (1 << self.all_bitboards[9])
+            or (1 << square + 1) & (1 << self.all_bitboards[9])
         ):
             move_list.append(
-                f"{encode_square(square)}{encode_square(self.en_passant_target + 8)}"
+                f"{encode_square(square)}{encode_square(self.all_bitboards[9] + 8)}"
             )
 
         return move_list
@@ -313,7 +307,7 @@ class ChessBoard:
         all_moves = []
 
         for square in range(64):
-            if np.uint64(1 << square) & self.white_pieces:
+            if np.uint64(1 << square) & self.all_bitboards[6]:
                 all_moves.extend(self.generatePieceMoves(square))
 
         return all_moves
@@ -342,9 +336,9 @@ class ChessBoard:
         for i in range(len(self.all_bitboards)):
             self.all_bitboards[i] = self.flip_bitboard(self.all_bitboards[i])
 
-        white = self.white_pieces
-        self.white_pieces = self.black_pieces
-        self.white_pieces = white
+        white = self.all_bitboards[6]
+        self.all_bitboards[6] = self.all_bitboards[7].copy()
+        self.all_bitboards[6] = white
 
     def evaluate(self) -> float:
         evaluation = 0.0
@@ -355,15 +349,15 @@ class ChessBoard:
             if piece == None:
                 continue
 
-            if np.uint64(1 << square) & self.white_pieces:
+            if np.uint64(1 << square) & self.all_bitboards[6]:
                 evaluation += self.pieceValue[piece]
 
-            if np.uint64(1 << square) & self.black_pieces:
+            if np.uint64(1 << square) & self.all_bitboards[7]:
                 evaluation += self.pieceValue[piece]
 
         return evaluation
 
-    def negamax2(self, depth: int, alpha, beta) -> tuple[float, list]:
+    def negamax(self, depth: int, alpha, beta) -> tuple[float, list]:
         if depth == 0:  # TODO: Implement end of game check
             return self.evaluate(), None
 
@@ -372,10 +366,13 @@ class ChessBoard:
         max_value = -999
         best_move = ""
 
+        """print(searchBoard.generateAllLegalMoves())
+        searchBoard.display_board()"""
+
         for move in searchBoard.generateAllLegalMoves():
             searchBoard.make_move(move)  # Makes the move
             searchBoard.flipAllBoards()  # Makes it black to play
-            value, _ = searchBoard.negamax2(
+            value, _ = searchBoard.negamax(
                 depth - 1, -beta, -alpha
             )  # Recursively calls itself on the new position with black to play
             searchBoard.undoMove()
@@ -389,27 +386,6 @@ class ChessBoard:
                 break
 
         return max_value, best_move
-
-    def negamax(self, depth):
-        if depth == 0:
-            return self.evaluate()
-
-        search_board = deepcopy(self)
-
-        best_value = -999
-
-        for move in search_board.generateAllLegalMoves():
-            search_board.make_move(move)
-            search_board.flipAllBoards()
-
-            value = search_board.negamax(depth - 1)
-
-            if -value > best_value:
-                best_value = -value
-
-            search_board.undoMove()
-
-        return best_value
 
     def display_board(self):
         fen = bitboards_to_fen(self.all_bitboards[:10])

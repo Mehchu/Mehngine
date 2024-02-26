@@ -148,7 +148,7 @@ def bitboards_to_fen(bitboards):
     en_passant_fen = (
         "-"
         if en_passant_target == 0
-        else f"{chr((en_passant_target % 8) + ord('a'))}{8 - (en_passant_target // 8)}"
+        else f"{chr((int(en_passant_target) % 8) + ord('a'))}{8 - (en_passant_target // 8)}"
     )
 
     return f"{piece_placement} {active_color} {castling_fen} {en_passant_fen} 0 1"

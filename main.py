@@ -4,8 +4,8 @@ from board.board_representation import ChessBoard
 from board.square_handling import decode_square, encode_square
 
 STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-TEST_FEN = "rnbqkbnr/ppppp2p/5p2/6p1/4P3/8/PPPP1PPP/RNBQKBNR"
-OTHER_TEST_FEN = "7K/8/8/8/4P3/8/4p3/7k w KQkq - 0 1"
+TEST_FEN = "rnbqkbnr/ppppp2p/5p2/6p1/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1"
+OTHER_TEST_FEN = "8/1P6/8/8/4p3/8/8/8 w KQkq - 0 1"
 
 
 def printBitboard(board: int) -> str:
@@ -31,25 +31,15 @@ def printBitboard(board: int) -> str:
 
 
 def main():
-    position = ChessBoard(STARTING_FEN)
-
-    """position.make_move("h8h7")
+    position = ChessBoard(TEST_FEN)
+    # position.make_move("d1h5")
     position.display_board()
 
-    print(position.evaluate())
+    print(position.negamax(4, -999, 999))
 
-    print(position.negamax2(1, -999, 999))"""
-
-    while True:
+    """while True:
         position.make_move(input())
-        position.display_board()
-        print(position.generateDiagonalMoves(32))
-        print(encode_square(32))
-        print(position.evaluate())
-
-        """for bitboard in range(len(position.all_bitboards)):
-            if position.all_bitboards[bitboard] != position.previous_position[bitboard]:
-                print(bitboard)"""
+        position.display_board()"""
 
 
 if __name__ == "__main__":
