@@ -43,11 +43,13 @@ def main():
     while True:
         position.make_move(input())
         position.display_board()
+        print(position.generateDiagonalMoves(32))
+        print(encode_square(32))
         print(position.evaluate())
 
-        for bitboard in range(len(position.all_bitboards)):
+        """for bitboard in range(len(position.all_bitboards)):
             if position.all_bitboards[bitboard] != position.previous_position[bitboard]:
-                print(bitboard)
+                print(bitboard)"""
 
 
 if __name__ == "__main__":

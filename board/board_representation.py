@@ -156,163 +156,57 @@ class ChessBoard:
     def generateOrthogonalMoves(self, square):  # #TODO: Change to offset method
         move_list = []
 
-        offsets = [-8, -1, 1, 8]
-        new_square = square
+        offsets = [-8, 8, -1, 1]
 
         # Moves up
-        for _ in range(8):
-            new_square += 8
+        for offset in offsets:
+            new_square = square
 
-            if not isOnBoard(new_square):
-                break
+            for _ in range(8):
+                new_square += offset
 
-            if np.uint64(1 << new_square) & self.occupancy_mask:
-                if np.uint64(1 << new_square) & self.black_pieces:
-                    move_list.append(
-                        f"{encode_square(square)}{encode_square(new_square)}"
-                    )
-                break
+                # TODO: might work as algorithm for legal moves??
+                # TODO: Can generate duplicate moves if legal square can be reached by looping
+                if not isOnBoard(new_square) or (
+                    new_square // 8 != square // 8 and new_square % 8 != square % 8
+                ):
+                    break
 
-            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+                if np.uint64(1 << new_square) & self.occupancy_mask:
+                    if np.uint64(1 << new_square) & self.black_pieces:
+                        move_list.append(
+                            f"{encode_square(square)}{encode_square(new_square)}"
+                        )
+                    break
 
-        new_square = square
-
-        # Moves down
-        for _ in range(8):
-            new_square -= 8
-
-            if not isOnBoard(new_square):
-                break
-
-            if np.uint64(1 << new_square) & self.occupancy_mask:
-                if np.uint64(1 << new_square) & self.black_pieces:
-                    move_list.append(
-                        f"{encode_square(square)}{encode_square(new_square)}"
-                    )
-                break
-
-            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
-
-        new_square = square
-
-        # Moves right
-        for _ in range(8):
-            new_square += 1
-
-            if not isOnBoard(new_square) or square // 8 != new_square // 8:
-                break
-
-            if np.uint64(1 << new_square) & self.occupancy_mask:
-                if np.uint64(1 << new_square) & self.black_pieces:
-                    move_list.append(
-                        f"{encode_square(square)}{encode_square(new_square)}"
-                    )
-                break
-
-            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
-
-        new_square = square
-
-        # Moves left
-        for _ in range(8):
-            new_square -= 1
-
-            if not isOnBoard(new_square) or square // 8 != new_square // 8:
-                break
-
-            if np.uint64(1 << new_square) & self.occupancy_mask:
-                if np.uint64(1 << new_square) & self.black_pieces:
-                    move_list.append(
-                        f"{encode_square(square)}{encode_square(new_square)}"
-                    )
-                break
-
-            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+                move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
 
         return move_list
 
     def generateDiagonalMoves(self, square):
         move_list = []
 
-        new_square = square
+        offsets = [-9, 9, -7, 7]
 
-        # Moves NE
-        for _ in range(8):
-            new_square += 9
+        for offset in offsets:
+            new_square = square
 
-            if not isOnBoard(new_square) or (new_square // 8 - square // 8) != (
-                new_square % 8 - square % 8
-            ):
-                break
+            for _ in range(8):
+                new_square += offset
 
-            if np.uint64(1 << new_square) & self.occupancy_mask:
-                if np.uint64(1 << new_square) & self.black_pieces:
-                    move_list.append(
-                        f"{encode_square(square)}{encode_square(new_square)}"
-                    )
-                break
+                if not isOnBoard(new_square) or abs(
+                    (new_square // 8 - square // 8)
+                ) != abs(new_square % 8 - square % 8):
+                    break
 
-            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+                if np.uint64(1 << new_square) & self.occupancy_mask:
+                    if np.uint64(1 << new_square) & self.black_pieces:
+                        move_list.append(
+                            f"{encode_square(square)}{encode_square(new_square)}"
+                        )
+                    break
 
-        new_square = square
-
-        # Moves NW
-        for _ in range(8):
-            new_square += 7
-
-            if not isOnBoard(new_square) or (new_square // 8 - square // 8) != (
-                new_square % 8 - square % 8
-            ):
-                break
-
-            if np.uint64(1 << new_square) & self.occupancy_mask:
-                if np.uint64(1 << new_square) & self.black_pieces:
-                    move_list.append(
-                        f"{encode_square(square)}{encode_square(new_square)}"
-                    )
-                break
-
-            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
-
-        new_square = square
-
-        # Moves SE
-        for _ in range(8):
-            new_square -= 9
-
-            if not isOnBoard(new_square) or (new_square // 8 - square // 8) != (
-                new_square % 8 - square % 8
-            ):
-                break
-
-            if np.uint64(1 << new_square) & self.occupancy_mask:
-                if np.uint64(1 << new_square) & self.black_pieces:
-                    move_list.append(
-                        f"{encode_square(square)}{encode_square(new_square)}"
-                    )
-                break
-
-            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
-
-        new_square = square
-
-        # Moves SW
-        for _ in range(8):
-            new_square -= 7
-
-            if not isOnBoard(new_square) or (new_square // 8 - square // 8) != (
-                new_square % 8 - square % 8
-            ):
-                break
-
-            if np.uint64(1 << new_square) & self.occupancy_mask:
-                if np.uint64(1 << new_square) & self.black_pieces:
-                    move_list.append(
-                        f"{encode_square(square)}{encode_square(new_square)}"
-                    )
-                break
-
-            move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+                move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
 
         return move_list
 
