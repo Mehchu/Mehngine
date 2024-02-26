@@ -18,7 +18,7 @@ def fen_to_bitboards(fen):
     piece_placement = fen.split()[0]
 
     # Loop through each rank and file
-    for rank, fen_rank in enumerate(piece_placement.split("/")):
+    for rank, fen_rank in enumerate(reversed(piece_placement.split("/"))):
         file_index = 0
 
         # Loop through each character in the FEN rank

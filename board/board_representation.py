@@ -103,12 +103,18 @@ class ChessBoard:
                 ~self.all_bitboards[index] | np.uint64(1 << end_square)
             )
 
+        # Identify the correct bitboard to update
         bitboard_index = PieceType[piece.upper()].value
 
         # Move the moving piece
         self.all_bitboards[bitboard_index] = ~(
             ~self.all_bitboards[bitboard_index] | np.uint64(1 << start_square)
         )
+
+        if promotion_piece != None:
+            piece = promotion_piece
+            bitboard_index = PieceType[piece.upper()].value
+
         self.all_bitboards[bitboard_index] |= np.uint64(1 << end_square)
 
         # Update coloured bitboards
@@ -150,6 +156,7 @@ class ChessBoard:
     def generateOrthogonalMoves(self, square):  # #TODO: Change to offset method
         move_list = []
 
+        offsets = [-8, -1, 1, 8]
         new_square = square
 
         # Moves up
