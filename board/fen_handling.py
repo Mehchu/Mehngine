@@ -18,7 +18,7 @@ def fen_to_bitboards(fen):
     piece_placement = fen.split()[0]
 
     # Loop through each rank and file
-    for rank, fen_rank in enumerate(reversed(piece_placement.split("/"))):
+    for rank, fen_rank in enumerate(piece_placement.split("/")):
         file_index = 0
 
         # Loop through each character in the FEN rank
@@ -174,11 +174,11 @@ def display_chess_position(fen):
 
     # Parse FEN string
     rows = fen.split()[0].split("/")
-    for row in reversed(rows):
+    for row in rows:
         display_row = []
         for char in row:
             if char.isdigit():
                 display_row.extend(["·"] * int(char))
             else:
-                display_row.append(char)
+                display_row.append(piece_mapping[char])
         print(" ".join(display_row))

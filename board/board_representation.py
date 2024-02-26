@@ -2,7 +2,11 @@ import numpy as np
 from enum import Enum
 from copy import deepcopy
 
-from board.fen_handling import fen_to_bitboards, bitboards_to_fen
+from board.fen_handling import (
+    fen_to_bitboards,
+    bitboards_to_fen,
+    display_chess_position,
+)
 from board.square_handling import (
     decompose_notation,
     decode_square,
@@ -415,21 +419,23 @@ class ChessBoard:
 
     def flip_bitboard(
         self, bitboard
-    ):  # Flips a bitboard to be from black's perspective TODO: make better
-        bitboard = int(bitboard)
-        h1 = 0x5555555555555555
-        h2 = 0x3333333333333333
-        h4 = 0x0F0F0F0F0F0F0F0F
-        v1 = 0x00FF00FF00FF00FF
-        v2 = 0x0000FFFF0000FFFF
+    ):  # Flips a bitboard to be from black's perspective
 
-        bitboard = ((bitboard >> 1) & h1) | ((bitboard & h1) << 1)
-        bitboard = ((bitboard >> 2) & h2) | ((bitboard & h2) << 2)
-        bitboard = ((bitboard >> 4) & h4) | ((bitboard & h4) << 4)
-        bitboard = ((bitboard >> 8) & v1) | ((bitboard & v1) << 8)
-        bitboard = ((bitboard >> 16) & v2) | ((bitboard & v2) << 16)
-        bitboard = (bitboard >> 64) | (bitboard << 64)
-        return bitboard & 0xFFFFFFFFFFFFFFFF
+        h1 = np.uint64(0x5555555555555555)
+        h2 = np.uint64(0x3333333333333333)
+        h4 = np.uint64(0x0F0F0F0F0F0F0F0F)
+        v1 = np.uint64(0x00FF00FF00FF00FF)
+        v2 = np.uint64(0x0000FFFF0000FFFF)
+
+        bitboard = ((bitboard >> np.uint64(1)) & h1) | ((bitboard & h1) << np.uint64(1))
+        bitboard = ((bitboard >> np.uint64(2)) & h2) | ((bitboard & h2) << np.uint64(2))
+        bitboard = ((bitboard >> np.uint64(4)) & h4) | ((bitboard & h4) << np.uint64(4))
+        bitboard = ((bitboard >> np.uint64(8)) & v1) | ((bitboard & v1) << np.uint64(8))
+        bitboard = ((bitboard >> np.uint64(16)) & v2) | (
+            (bitboard & v2) << np.uint64(16)
+        )
+        bitboard = (bitboard >> np.uint64(32)) | (bitboard << np.uint64(32))
+        return bitboard & np.uint64(0xFFFFFFFFFFFFFFFF)
 
     def flipAllBoards(self):
         for i in range(len(self.all_bitboards)):
@@ -445,18 +451,18 @@ class ChessBoard:
         for square in range(64):
             piece = self.determine_piece_on_square(square)
 
-            if piece == -1:
+            if piece == None:
                 continue
 
-            if np.uint64(1 << square) & self.white_pieces != 0:
+            if np.uint64(1 << square) & self.white_pieces:
                 evaluation += self.pieceValue[piece]
 
-            if np.uint64(1 << square) & self.black_pieces != 0:
+            if np.uint64(1 << square) & self.black_pieces:
                 evaluation += self.pieceValue[piece]
 
         return evaluation
 
-    def negamax(self, depth: int, alpha, beta) -> tuple[float, list]:
+    def negamax2(self, depth: int, alpha, beta) -> tuple[float, list]:
         if depth == 0:  # TODO: Implement end of game check
             return self.evaluate(), None
 
@@ -468,7 +474,7 @@ class ChessBoard:
         for move in searchBoard.generateAllLegalMoves():
             searchBoard.make_move(move)  # Makes the move
             searchBoard.flipAllBoards()  # Makes it black to play
-            value, _ = searchBoard.negamax(
+            value, _ = searchBoard.negamax2(
                 depth - 1, -beta, -alpha
             )  # Recursively calls itself on the new position with black to play
             searchBoard.undoMove()
@@ -483,5 +489,27 @@ class ChessBoard:
 
         return max_value, best_move
 
+    def negamax(self, depth):
+        if depth == 0:
+            return self.evaluate()
+
+        search_board = deepcopy(self)
+
+        best_value = -999
+
+        for move in search_board.generateAllLegalMoves():
+            search_board.make_move(move)
+            search_board.flipAllBoards()
+
+            value = search_board.negamax(depth - 1)
+
+            if -value > best_value:
+                best_value = -value
+
+            search_board.undoMove()
+
+        return best_value
+
     def display_board(self):
         fen = bitboards_to_fen(self.all_bitboards[:10])
+        display_chess_position(fen)

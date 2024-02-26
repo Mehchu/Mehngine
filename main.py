@@ -1,3 +1,5 @@
+import numpy as np
+
 from board.board_representation import ChessBoard
 from board.square_handling import decode_square, encode_square
 
@@ -29,20 +31,23 @@ def printBitboard(board: int) -> str:
 
 
 def main():
-    position = ChessBoard(OTHER_TEST_FEN)
+    position = ChessBoard(STARTING_FEN)
+
+    """position.make_move("h8h7")
     position.display_board()
 
-    print(position.negamax(2, -999, 999))
+    print(position.evaluate())
 
-    """
+    print(position.negamax2(1, -999, 999))"""
+
     while True:
-        move = input("Enter a valid move: ")
-
-        position.make_move(move)
+        position.make_move(input())
         position.display_board()
+        print(position.evaluate())
 
-        print(printBitboard(position.generateOrthogonalMoves(32)))
-    """
+        for bitboard in range(len(position.all_bitboards)):
+            if position.all_bitboards[bitboard] != position.previous_position[bitboard]:
+                print(bitboard)
 
 
 if __name__ == "__main__":
