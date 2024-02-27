@@ -1,11 +1,21 @@
 import numpy as np
+import time
 
 from board.board_representation import ChessBoard
 from board.square_handling import decode_square, encode_square
 
+
+def time_function(func):
+    start_time = time.time()
+    func()
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed Time: {elapsed_time} seconds")
+
+
 STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 TEST_FEN = "rnbqkbnr/ppppp2p/5p2/6p1/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1"
-OTHER_TEST_FEN = "8/1P6/8/8/4p3/8/8/8 w KQkq - 0 1"
+OTHER_TEST_FEN = "7K/8/1P7/4p3/8/8/8/k7 w KQkq - 0 1"
 
 
 def printBitboard(board: int) -> str:
@@ -32,10 +42,11 @@ def printBitboard(board: int) -> str:
 
 def main():
     position = ChessBoard(TEST_FEN)
-    # position.make_move("d1h5")
     position.display_board()
 
-    print(position.negamax(4, -999, 999))
+    print(position.negamax2(4, -float("inf"), float("inf")))
+
+    position.display_board()
 
     """while True:
         position.make_move(input())
@@ -43,4 +54,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    time_function(main)

@@ -69,6 +69,9 @@ class ChessBoard:
             "k": -99,
         }
 
+    def is_game_over(self):
+        return False
+
     def make_move(self, long_algebraic_notation):  # TODO: Update misc bitboards
         self.previous_position = self.all_bitboards.copy()  # TODO: make better
 
@@ -122,7 +125,7 @@ class ChessBoard:
         if piece.upper() == "P" and abs(end_square // 8 - start_square // 8) == 2:
             self.all_bitboards[9] = end_square
 
-    def undoMove(self):  # Returns the board to its previous position TODO: Make better
+    def undo_move(self):  # Returns the board to its previous position TODO: Make better
         self.all_bitboards = self.previous_position.copy()
 
     def determine_piece_on_square(self, square):
@@ -332,13 +335,13 @@ class ChessBoard:
         bitboard = (bitboard >> np.uint64(32)) | (bitboard << np.uint64(32))
         return bitboard & np.uint64(0xFFFFFFFFFFFFFFFF)
 
-    def flipAllBoards(self):
+    def make_it_blacks_turn(self):
         for i in range(len(self.all_bitboards)):
             self.all_bitboards[i] = self.flip_bitboard(self.all_bitboards[i])
 
-        white = self.all_bitboards[6]
+        white = self.all_bitboards[6].copy()
         self.all_bitboards[6] = self.all_bitboards[7].copy()
-        self.all_bitboards[6] = white
+        self.all_bitboards[7] = white.copy()
 
     def evaluate(self) -> float:
         evaluation = 0.0
@@ -364,18 +367,18 @@ class ChessBoard:
         searchBoard = deepcopy(self)
 
         max_value = -999
-        best_move = ""
+        best_move = None
 
-        """print(searchBoard.generateAllLegalMoves())
+        """print(f"\nThis is depth {depth}\n")
         searchBoard.display_board()"""
 
         for move in searchBoard.generateAllLegalMoves():
             searchBoard.make_move(move)  # Makes the move
-            searchBoard.flipAllBoards()  # Makes it black to play
+            searchBoard.make_it_blacks_turn()  # Makes it black to play
             value, _ = searchBoard.negamax(
                 depth - 1, -beta, -alpha
             )  # Recursively calls itself on the new position with black to play
-            searchBoard.undoMove()
+            searchBoard.undo_move()
 
             if -value > max_value:
                 max_value = -value
@@ -387,6 +390,33 @@ class ChessBoard:
 
         return max_value, best_move
 
+    def negamax2(self, depth, alpha, beta):
+        if depth == 0 or self.is_game_over():
+            return None, self.evaluate()
+
+        best_move = None
+        max_score = -float("inf")
+        self.make_it_blacks_turn()
+        for move in self.generateAllLegalMoves():
+            self.make_move(move)
+            _, score = self.negamax2(depth - 1, -beta, -alpha)
+            score = -score
+            self.undo_move()
+
+            if score > max_score:
+                max_score = score
+                best_move = move
+
+            alpha = max(alpha, score)
+            if alpha >= beta:
+                break  # Beta cut-off
+
+        return best_move, max_score
+
     def display_board(self):
         fen = bitboards_to_fen(self.all_bitboards[:10])
         display_chess_position(fen)
+
+    def __repr__(self) -> str:
+        fen = bitboards_to_fen(self.all_bitboards[:10])
+        return display_chess_position(fen)
