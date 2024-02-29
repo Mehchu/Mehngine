@@ -67,13 +67,17 @@ def minimax_alpha_beta(board, depth, alpha, beta, maximizing_player):
 
             _, eval = minimax_alpha_beta(board, depth - 1, alpha, beta, True)
             eval = -eval
+
             board.undo_move()
+
             if eval < min_eval:
                 min_eval = eval
                 best_move = move
+
             beta = min(beta, eval)
             if beta <= alpha:
                 break
+
         return best_move, min_eval
 
 
