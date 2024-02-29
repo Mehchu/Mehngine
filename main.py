@@ -2,7 +2,7 @@ import numpy as np
 import time
 
 from board.board_representation import ChessBoard
-from board.square_handling import decode_square, encode_square
+from board.notation_handling import decode_square, encode_square
 
 from board.search_algorithms import *
 
@@ -56,11 +56,17 @@ def main():
         position.display_board()
         position.flip_board()
 
-        move, eval = minimax_alpha_beta(position, 2, -float("inf"), float("inf"), True)
+        m_move, m_eval = minimax_alpha_beta(
+            position, 5, -float("inf"), float("inf"), True
+        )
+        n_move, n_eval = negamax_alpha_beta(
+            position, 5, -float("inf"), float("inf"), True
+        )
 
-        print(move, eval)
+        print(f"Minimax: {m_move, m_eval}")
+        print(f"Negamax: {n_move, n_eval}")
 
-        position.make_move(move)
+        position.make_move(n_move)
         position.flip_board()
         position.display_board()
 

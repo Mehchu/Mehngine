@@ -26,8 +26,7 @@ class PieceType(Enum):
 
 class GameOver(Exception):
     def __init__(self, player):
-        self.message = "Engine won" if player else "Player won"
-        super().__init(self.message)
+        print("Engine won" if player else "Player won")
 
 
 class ChessBoard:
@@ -117,7 +116,7 @@ class ChessBoard:
 
     def make_move(self, long_algebraic_notation):  # TODO: Update misc bitboards
         if long_algebraic_notation == None:
-            raise GameOver
+            raise GameOver(False)
 
         self.previous_positions.append(self.all_bitboards.copy())  # TODO: make better
 
@@ -131,8 +130,11 @@ class ChessBoard:
             return
 
         # Creates masks to turn off a specified bit
-        start_mask = np.uint64(~(1 << start_square))
-        end_mask = np.uint64(~(1 << end_square))
+        try:
+            start_mask = np.uint64(~(1 << start_square))
+            end_mask = np.uint64(~(1 << end_square))
+        except OverflowError:
+            return
 
         # Delete the piece, if any, on the end square
         for index in range(8):
