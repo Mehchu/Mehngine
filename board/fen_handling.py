@@ -174,6 +174,7 @@ def display_chess_position(fen):
 
     # Parse FEN string
     rows = fen.split()[0].split("/")
+    display_str = ""
     for row in rows:
         display_row = []
         for char in row:
@@ -181,4 +182,6 @@ def display_chess_position(fen):
                 display_row.extend(["·"] * int(char))
             else:
                 display_row.append(piece_mapping[char])
-        print(" ".join(display_row))
+        display_str += " ".join(display_row) + "\n"
+
+    return display_str

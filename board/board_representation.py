@@ -52,7 +52,7 @@ class ChessBoard:
             dtype=np.uint64,
         )
 
-        self.previous_position = self.all_bitboards.copy()  # TODO: make better
+        self.previous_positions = [self.all_bitboards.copy()]  # TODO: make better
 
         self.pieceValue = {
             "P": 1,
@@ -60,20 +60,29 @@ class ChessBoard:
             "B": 3,
             "R": 5,
             "Q": 9,
-            "K": 99,
+            "K": 999,
             "p": -1,
             "n": -3,
             "b": -3,
             "r": -5,
             "q": -9,
-            "k": -99,
+            "k": -999,
         }
 
+        self.best_score = -float("inf")
+        self.best_move = None
+
     def is_game_over(self):
+        if (
+            self.generateAllLegalMoves() == []
+            or self.all_bitboards[5] & self.all_bitboards[6] == 0
+            or self.all_bitboards[5] & self.all_bitboards[7] == 0
+        ):
+            return True
         return False
 
     def make_move(self, long_algebraic_notation):  # TODO: Update misc bitboards
-        self.previous_position = self.all_bitboards.copy()  # TODO: make better
+        self.previous_positions.append(self.all_bitboards.copy())  # TODO: make better
 
         start_square, end_square, promotion_piece = decompose_notation(
             long_algebraic_notation
@@ -126,7 +135,8 @@ class ChessBoard:
             self.all_bitboards[9] = end_square
 
     def undo_move(self):  # Returns the board to its previous position TODO: Make better
-        self.all_bitboards = self.previous_position.copy()
+        self.all_bitboards = self.previous_positions[-1]
+        self.previous_positions.pop()
 
     def determine_piece_on_square(self, square):
         piece = None
@@ -141,9 +151,11 @@ class ChessBoard:
         return piece
 
     def updateOccupancyMask(self):
-        self.all_bitboards[10] = self.all_bitboards[6] | self.all_bitboards[7]
+        self.all_bitboards[10] = (
+            self.all_bitboards[6].copy() | self.all_bitboards[7].copy()
+        )
 
-    def generateOrthogonalMoves(self, square):  # #TODO: Change to offset method
+    def generateOrthogonalMoves(self, square):  # TODO: Change to offset method
         move_list = []
 
         offsets = [-8, 8, -1, 1]
@@ -276,8 +288,8 @@ class ChessBoard:
 
         # Handle en passant
         if square // 8 == self.all_bitboards[9] // 8 and (
-            (1 << square - 1) & (1 << self.all_bitboards[9])
-            or (1 << square + 1) & (1 << self.all_bitboards[9])
+            np.uint64(1 << square - 1) & (np.uint64(1) << self.all_bitboards[9])
+            or np.uint64(1 << square + 1) & (np.uint64(1) << self.all_bitboards[9])
         ):
             move_list.append(
                 f"{encode_square(square)}{encode_square(self.all_bitboards[9] + 8)}"
@@ -335,7 +347,7 @@ class ChessBoard:
         bitboard = (bitboard >> np.uint64(32)) | (bitboard << np.uint64(32))
         return bitboard & np.uint64(0xFFFFFFFFFFFFFFFF)
 
-    def make_it_blacks_turn(self):
+    def flip_board(self):
         for i in range(len(self.all_bitboards)):
             self.all_bitboards[i] = self.flip_bitboard(self.all_bitboards[i])
 
@@ -364,21 +376,19 @@ class ChessBoard:
         if depth == 0:  # TODO: Implement end of game check
             return self.evaluate(), None
 
-        searchBoard = deepcopy(self)
-
         max_value = -999
         best_move = None
 
         """print(f"\nThis is depth {depth}\n")
         searchBoard.display_board()"""
 
-        for move in searchBoard.generateAllLegalMoves():
-            searchBoard.make_move(move)  # Makes the move
-            searchBoard.make_it_blacks_turn()  # Makes it black to play
-            value, _ = searchBoard.negamax(
+        for move in self.generateAllLegalMoves():
+            self.make_move(move)  # Makes the move
+            self.flip_board()  # Makes it black to play
+            value, _ = self.negamax(
                 depth - 1, -beta, -alpha
             )  # Recursively calls itself on the new position with black to play
-            searchBoard.undo_move()
+            self.undo_move()
 
             if -value > max_value:
                 max_value = -value
@@ -390,16 +400,22 @@ class ChessBoard:
 
         return max_value, best_move
 
-    def negamax2(self, depth, alpha, beta):
+    def negamax2(self, depth, alpha, beta, *top):
         if depth == 0 or self.is_game_over():
             return None, self.evaluate()
 
         best_move = None
         max_score = -float("inf")
-        self.make_it_blacks_turn()
+
+        if not top:
+            self.flip_board()
+
         for move in self.generateAllLegalMoves():
+
             self.make_move(move)
+
             _, score = self.negamax2(depth - 1, -beta, -alpha)
+
             score = -score
             self.undo_move()
 
@@ -413,10 +429,39 @@ class ChessBoard:
 
         return best_move, max_score
 
+    def negamax3(self, depth, alpha, beta, *top):
+        if depth == 0 or self.is_game_over():
+            return None, self.evaluate()
+
+        best_move = None
+        max_score = -float("inf")
+
+        self.flip_board()  # Adjust board perspective
+
+        for move in self.generateAllLegalMoves():
+            self.make_move(move)
+            _, score = self.negamax2(depth - 1, -beta, -alpha)
+            score = -score  # Negate the score
+            self.undo_move()
+
+            if score >= beta:
+                return move, score  # Beta cut-off
+
+            if score > max_score:
+                max_score = score
+                best_move = move
+                alpha = max(alpha, score)
+
+        return best_move, max_score
+
     def display_board(self):
         fen = bitboards_to_fen(self.all_bitboards[:10])
-        display_chess_position(fen)
+        print(display_chess_position(fen))
 
     def __repr__(self) -> str:
+        fen = bitboards_to_fen(self.all_bitboards[:10])
+        return display_chess_position(fen)
+
+    def __str__(self) -> str:
         fen = bitboards_to_fen(self.all_bitboards[:10])
         return display_chess_position(fen)

@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def decompose_notation(notation):
     start_square = decode_square(notation[:2])
     end_square = decode_square(notation[2:4])
@@ -10,7 +13,7 @@ def decompose_notation(notation):
 
 
 def encode_square(numerical_square):
-    return chr(numerical_square % 8 + 97) + str(numerical_square // 8 + 1)
+    return chr(np.uint64(numerical_square % 8 + 97)) + str(numerical_square // 8 + 1)
 
 
 def decode_square(algebraic_square):

@@ -4,6 +4,8 @@ import time
 from board.board_representation import ChessBoard
 from board.square_handling import decode_square, encode_square
 
+from board.search_algorithms import *
+
 
 def time_function(func):
     start_time = time.time()
@@ -41,16 +43,26 @@ def printBitboard(board: int) -> str:
 
 
 def main():
-    position = ChessBoard(TEST_FEN)
-    position.display_board()
-
-    print(position.negamax2(4, -float("inf"), float("inf")))
+    position = ChessBoard(STARTING_FEN)
 
     position.display_board()
 
-    """while True:
+    # print(position.negamax2(4, -float("inf"), float("inf"), True))
+
+    # print(minimax_alpha_beta(position, 5, -float("inf"), float("inf"), True))
+
+    while True:
         position.make_move(input())
-        position.display_board()"""
+        position.display_board()
+        position.flip_board()
+
+        move, eval = minimax_alpha_beta(position, 2, -float("inf"), float("inf"), True)
+
+        print(move, eval)
+
+        position.make_move(move)
+        position.flip_board()
+        position.display_board()
 
 
 if __name__ == "__main__":
