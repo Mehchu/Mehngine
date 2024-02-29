@@ -79,14 +79,15 @@ def minimax_alpha_beta(board, depth, alpha, beta, maximizing_player):
 
 def negamax(board, depth, color):
     if depth == 0 or board.is_game_over():
-        return color * board.evaluate(), None
+        return None, color * board.evaluate()
 
     best_move = None
+
     for move in board.generateAllLegalMoves():
         board.make_move(move)
         board.flip_board()
 
-        score, _ = negamax_alpha_beta(board, depth - 1, -color)
+        _, score = negamax_alpha_beta(board, depth - 1, -color)
         score = -score
         board.undo_move()
 
@@ -94,26 +95,28 @@ def negamax(board, depth, color):
             max_score = score
             best_move = move
 
-    return max_score, best_move
+    return best_move, max_score
 
 
 def negamax_alpha_beta(board, depth, alpha, beta, color):
     if depth == 0 or board.is_game_over():
-        return color * board.evaluate(), None
+        return None, color * board.evaluate()
 
     best_move = None
+
     for move in board.generateAllLegalMoves():
         board.make_move(move)
         board.flip_board()
-        score, _ = negamax_alpha_beta(board, depth - 1, -beta, -alpha, -color)
+
+        _, score = negamax_alpha_beta(board, depth - 1, -beta, -alpha, -color)
         score = -score
         board.undo_move()
 
         if score >= beta:
-            return beta, best_move
+            return best_move, beta
 
         if score > alpha:
             alpha = score
             best_move = move
 
-    return alpha, best_move
+    return best_move, alpha
