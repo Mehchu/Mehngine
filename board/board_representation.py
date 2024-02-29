@@ -7,7 +7,7 @@ from board.fen_handling import (
     bitboards_to_fen,
     display_chess_position,
 )
-from board.square_handling import (
+from board.notation_handling import (
     decompose_notation,
     decode_square,
     encode_square,
@@ -116,6 +116,9 @@ class ChessBoard:
         )
 
     def make_move(self, long_algebraic_notation):  # TODO: Update misc bitboards
+        if long_algebraic_notation == None:
+            raise GameOver
+
         self.previous_positions.append(self.all_bitboards.copy())  # TODO: make better
 
         start_square, end_square, promotion_piece = decompose_notation(
