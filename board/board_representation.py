@@ -24,6 +24,12 @@ class PieceType(Enum):
     K = 5
 
 
+class GameOver(Exception):
+    def __init__(self, player):
+        self.message = "Engine won" if player else "Player won"
+        super().__init(self.message)
+
+
 class ChessBoard:
     def __init__(self, fen) -> None:
         # Convert the inputted fen to an array of binary integers
@@ -81,6 +87,34 @@ class ChessBoard:
             return True
         return False
 
+    def isEdge(self, start_square, dest_square):
+        """
+        Check if a move from start_square to dest_square crosses an edge of the chessboard.
+
+        Args:
+            start_square (int): The starting square index.
+            dest_square (int): The destination square index.
+
+        Returns:
+            bool: True if the move crosses an edge, False otherwise.
+        """
+        # Define the board dimensions (8x8 chessboard)
+        num_ranks = 8
+        num_files = 8
+
+        # Get file and rank indices of start and dest squares
+        start_file = start_square % num_files
+        start_rank = start_square // num_ranks
+        dest_file = dest_square % num_files
+        dest_rank = dest_square // num_ranks
+
+        # Check if the move crosses an edge in any direction
+        return (
+            abs(dest_file - start_file) > 1
+            or abs(dest_rank - start_rank)  # Check file difference
+            > 1  # Check rank difference
+        )
+
     def make_move(self, long_algebraic_notation):  # TODO: Update misc bitboards
         self.previous_positions.append(self.all_bitboards.copy())  # TODO: make better
 
@@ -93,19 +127,19 @@ class ChessBoard:
         if piece is None:
             return
 
+        # Creates masks to turn off a specified bit
+        start_mask = np.uint64(~(1 << start_square))
+        end_mask = np.uint64(~(1 << end_square))
+
         # Delete the piece, if any, on the end square
         for index in range(8):
-            self.all_bitboards[index] = ~(
-                ~self.all_bitboards[index] | np.uint64(1 << end_square)
-            )
+            self.all_bitboards[index] &= end_mask
 
         # Identify the correct bitboard to update
         bitboard_index = PieceType[piece.upper()].value
 
-        # Move the moving piece
-        self.all_bitboards[bitboard_index] = ~(
-            ~self.all_bitboards[bitboard_index] | np.uint64(1 << start_square)
-        )
+        # Delete the moving piece
+        self.all_bitboards[bitboard_index] &= start_mask
 
         # Update the targeted bitboard for the new piece if applicable
         if promotion_piece != None:
@@ -117,14 +151,10 @@ class ChessBoard:
 
         # Update coloured bitboards
         if piece.isupper():
-            self.all_bitboards[6] = ~(
-                ~self.all_bitboards[6] | np.uint64(1 << start_square)
-            )
+            self.all_bitboards[6] &= start_mask
             self.all_bitboards[6] |= np.uint64(1 << end_square)
         else:
-            self.all_bitboards[7] = ~(
-                ~self.all_bitboards[7] | np.uint64(1 << start_square)
-            )
+            self.all_bitboards[7] &= start_mask
             self.all_bitboards[7] |= np.uint64(1 << end_square)
 
         # Update misc
@@ -155,7 +185,7 @@ class ChessBoard:
             self.all_bitboards[6].copy() | self.all_bitboards[7].copy()
         )
 
-    def generateOrthogonalMoves(self, square):  # TODO: Change to offset method
+    def generateOrthogonalMoves(self, square):
         move_list = []
 
         offsets = [-8, 8, -1, 1]
@@ -221,6 +251,7 @@ class ChessBoard:
             if (
                 isOnBoard(square + offset)
                 and not np.uint64(1 << (square + offset)) & self.all_bitboards[6]
+                and not self.isEdge(square, square + offset)
             )
         ]
 
@@ -347,7 +378,7 @@ class ChessBoard:
         bitboard = (bitboard >> np.uint64(32)) | (bitboard << np.uint64(32))
         return bitboard & np.uint64(0xFFFFFFFFFFFFFFFF)
 
-    def flip_board(self):
+    def flip_board(self):  # Flips each board to be from blacks perspective
         for i in range(len(self.all_bitboards)):
             self.all_bitboards[i] = self.flip_bitboard(self.all_bitboards[i])
 
@@ -355,7 +386,7 @@ class ChessBoard:
         self.all_bitboards[6] = self.all_bitboards[7].copy()
         self.all_bitboards[7] = white.copy()
 
-    def evaluate(self) -> float:
+    def evaluate(self) -> float:  # TODO implement more complex evaluation
         evaluation = 0.0
 
         for square in range(64):
@@ -371,88 +402,6 @@ class ChessBoard:
                 evaluation += self.pieceValue[piece]
 
         return evaluation
-
-    def negamax(self, depth: int, alpha, beta) -> tuple[float, list]:
-        if depth == 0:  # TODO: Implement end of game check
-            return self.evaluate(), None
-
-        max_value = -999
-        best_move = None
-
-        """print(f"\nThis is depth {depth}\n")
-        searchBoard.display_board()"""
-
-        for move in self.generateAllLegalMoves():
-            self.make_move(move)  # Makes the move
-            self.flip_board()  # Makes it black to play
-            value, _ = self.negamax(
-                depth - 1, -beta, -alpha
-            )  # Recursively calls itself on the new position with black to play
-            self.undo_move()
-
-            if -value > max_value:
-                max_value = -value
-                best_move = move
-
-            alpha = max(alpha, -value)
-            if alpha >= beta:
-                break
-
-        return max_value, best_move
-
-    def negamax2(self, depth, alpha, beta, *top):
-        if depth == 0 or self.is_game_over():
-            return None, self.evaluate()
-
-        best_move = None
-        max_score = -float("inf")
-
-        if not top:
-            self.flip_board()
-
-        for move in self.generateAllLegalMoves():
-
-            self.make_move(move)
-
-            _, score = self.negamax2(depth - 1, -beta, -alpha)
-
-            score = -score
-            self.undo_move()
-
-            if score > max_score:
-                max_score = score
-                best_move = move
-
-            alpha = max(alpha, score)
-            if alpha >= beta:
-                break  # Beta cut-off
-
-        return best_move, max_score
-
-    def negamax3(self, depth, alpha, beta, *top):
-        if depth == 0 or self.is_game_over():
-            return None, self.evaluate()
-
-        best_move = None
-        max_score = -float("inf")
-
-        self.flip_board()  # Adjust board perspective
-
-        for move in self.generateAllLegalMoves():
-            self.make_move(move)
-            _, score = self.negamax2(depth - 1, -beta, -alpha)
-            score = -score  # Negate the score
-            self.undo_move()
-
-            if score >= beta:
-                return move, score  # Beta cut-off
-
-            if score > max_score:
-                max_score = score
-                best_move = move
-                alpha = max(alpha, score)
-
-        return best_move, max_score
 
     def display_board(self):
         fen = bitboards_to_fen(self.all_bitboards[:10])
