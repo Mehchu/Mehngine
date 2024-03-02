@@ -5,15 +5,20 @@ def minimax(board, depth, maximizing_player):
     if maximizing_player:
         best_move = None
         max_eval = -float("inf")
+
         for move in board.generateAllLegalMoves():
             board.make_move(move)
             board.flip_board()
+
             _, eval = minimax(board, depth - 1, False)
             eval = -eval
+
             board.undo_move()
+
             if eval > max_eval:
                 max_eval = eval
                 best_move = move
+
         return best_move, max_eval
     else:
         best_move = None
@@ -22,12 +27,16 @@ def minimax(board, depth, maximizing_player):
         for move in board.generateAllLegalMoves():
             board.make_move(move)
             board.flip_board()
+
             _, eval = minimax(board, depth - 1, True)
             eval = -eval
+
             board.undo_move()
+
             if eval < min_eval:
                 min_eval = eval
                 best_move = move
+
         return best_move, min_eval
 
 

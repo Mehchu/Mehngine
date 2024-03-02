@@ -58,6 +58,13 @@ def main():
 
         print(f"Legal moves:\n{position.generateAllLegalMoves()}\n")
 
+        ma_move, ma_eval = minimax_alpha_beta(
+            position, 3, -float("inf"), float("inf"), True
+        )
+        na_move, na_eval = negamax_alpha_beta(
+            position, 3, -float("inf"), float("inf"), True
+        )
+
         m_move, m_eval = minimax_alpha_beta(
             position, 3, -float("inf"), float("inf"), True
         )
@@ -65,10 +72,12 @@ def main():
             position, 3, -float("inf"), float("inf"), True
         )
 
+        print(f"Minimax Alpha: {ma_move, ma_eval}")
+        print(f"Negamax Alpha: {na_move, na_eval}")
         print(f"Minimax: {m_move, m_eval}")
         print(f"Negamax: {n_move, n_eval}")
 
-        position.make_move(n_move if n_eval > m_eval else m_move)
+        position.make_move(na_move if na_eval > ma_eval else ma_move)
         position.flip_board()
         position.display_board()
 

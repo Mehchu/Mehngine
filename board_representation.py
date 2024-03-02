@@ -1,15 +1,13 @@
 import numpy as np
 from enum import Enum
-from copy import deepcopy
 
-from board.fen_handling import (
+from fen_handling import (
     fen_to_bitboards,
     bitboards_to_fen,
     display_chess_position,
 )
-from board.notation_handling import (
+from notation_handling import (
     decompose_notation,
-    decode_square,
     encode_square,
     isOnBoard,
 )
