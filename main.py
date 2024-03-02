@@ -1,10 +1,10 @@
 import numpy as np
 import time
 
-from board.board_representation import ChessBoard
-from board.notation_handling import decode_square, encode_square
+from board_representation import ChessBoard
+from notation_handling import decode_square, encode_square
 
-from board.search_algorithms import *
+from search_algorithms import *
 
 
 def time_function(func):
@@ -59,10 +59,10 @@ def main():
         print(f"Legal moves:\n{position.generateAllLegalMoves()}\n")
 
         m_move, m_eval = minimax_alpha_beta(
-            position, 4, -float("inf"), float("inf"), True
+            position, 3, -float("inf"), float("inf"), True
         )
         n_move, n_eval = negamax_alpha_beta(
-            position, 4, -float("inf"), float("inf"), True
+            position, 3, -float("inf"), float("inf"), True
         )
 
         print(f"Minimax: {m_move, m_eval}")
