@@ -29,6 +29,7 @@ class GameOver(Exception):
 
 class ChessBoard:
     def __init__(self, fen) -> None:
+        self.white_to_move = True
         # Convert the inputted fen to an array of binary integers
         temporary_bitboards = fen_to_bitboards(fen)
 
@@ -72,44 +73,30 @@ class ChessBoard:
             "k": -999,
         }
 
-        self.best_score = -float("inf")
-        self.best_move = None
-
     def is_game_over(self):
         if (
-            self.generateAllLegalMoves() == []
-            or self.all_bitboards[5] & self.all_bitboards[6] == 0
-            or self.all_bitboards[5] & self.all_bitboards[7] == 0
+            self.generate_legal_moves() == []  # Stalemate
+            or self.all_bitboards[5] & self.all_bitboards[6]
+            == 0  # White king has been captured
+            or self.all_bitboards[5] & self.all_bitboards[7]
+            == 0  # Black king has been captured
         ):
             return True
         return False
 
-    def isEdge(self, start_square, dest_square):
-        """
-        Check if a move from start_square to dest_square crosses an edge of the chessboard.
-
-        Args:
-            start_square (int): The starting square index.
-            dest_square (int): The destination square index.
-
-        Returns:
-            bool: True if the move crosses an edge, False otherwise.
-        """
-        # Define the board dimensions (8x8 chessboard)
-        num_ranks = 8
-        num_files = 8
+    def is_edge(self, start_square, dest_square):
 
         # Get file and rank indices of start and dest squares
-        start_file = start_square % num_files
-        start_rank = start_square // num_ranks
-        dest_file = dest_square % num_files
-        dest_rank = dest_square // num_ranks
+        start_file = start_square % 8
+        start_rank = start_square // 8
+        dest_file = dest_square % 8
+        dest_rank = dest_square // 8
 
         # Check if the move crosses an edge in any direction
         return (
-            abs(dest_file - start_file) > 1
+            abs(dest_file - start_file) > 2
             or abs(dest_rank - start_rank)  # Check file difference
-            > 1  # Check rank difference
+            > 2  # Check rank difference
         )
 
     def make_move(self, long_algebraic_notation):  # TODO: Update misc bitboards
@@ -162,10 +149,13 @@ class ChessBoard:
 
         # Update misc
         self.all_bitboards[9] = 0
-        self.updateOccupancyMask()
+        self.update_occupancy_mask()
 
         if piece.upper() == "P" and abs(end_square // 8 - start_square // 8) == 2:
             self.all_bitboards[9] = end_square
+
+        self.flip_board()
+        self.white_to_move = not self.white_to_move
 
     def undo_move(self):  # Returns the board to its previous position TODO: Make better
         self.all_bitboards = self.previous_positions[-1]
@@ -183,12 +173,12 @@ class ChessBoard:
 
         return piece
 
-    def updateOccupancyMask(self):
+    def update_occupancy_mask(self):
         self.all_bitboards[10] = (
             self.all_bitboards[6].copy() | self.all_bitboards[7].copy()
         )
 
-    def generateOrthogonalMoves(self, square):
+    def generate_orthogonal_moves(self, square):
         move_list = []
 
         offsets = [-8, 8, -1, 1]
@@ -218,7 +208,7 @@ class ChessBoard:
 
         return move_list
 
-    def generateDiagonalMoves(self, square):
+    def generate_diagonal_moves(self, square):
         move_list = []
 
         offsets = [-9, 9, -7, 7]
@@ -245,7 +235,7 @@ class ChessBoard:
 
         return move_list
 
-    def generateKnightMoves(self, square):
+    def generate_knight_moves(self, square):
         offsets = [-17, -15, -10, -6, 6, 10, 15, 17]
 
         return [
@@ -254,11 +244,11 @@ class ChessBoard:
             if (
                 isOnBoard(square + offset)
                 and not np.uint64(1 << (square + offset)) & self.all_bitboards[6]
-                and not self.isEdge(square, square + offset)
+                and not self.is_edge(square, square + offset)
             )
         ]
 
-    def generateKingMoves(self, square):
+    def generate_king_moves(self, square):
         offsets = [1, -1, -8, -8, 9, -9, 7, -7]
 
         return [
@@ -270,7 +260,7 @@ class ChessBoard:
             )
         ]
 
-    def generatePawnMoves(self, square):
+    def generate_pawn_moves(self, square):
         move_list = []
         # Find forward pawn moves
         if (
@@ -294,7 +284,9 @@ class ChessBoard:
                 move_list.append(f"{encode_square(square)}{encode_square(square + 8)}")
 
         # Find captures
-        if np.uint64(1 << (square + 7)) & self.all_bitboards[7]:
+        if np.uint64(1 << (square + 7)) & self.all_bitboards[7] and not self.is_edge(
+            square, square + 7
+        ):
             # Handle promotion
             if (square + 7) // 8 == 7:
                 move_list.extend(
@@ -305,7 +297,9 @@ class ChessBoard:
             else:
                 move_list.append(f"{encode_square(square)}{encode_square(square + 7)}")
         try:
-            if np.uint64(1 << (square + 9)) & self.all_bitboards[7]:
+            if np.uint64(1 << (square + 9)) & self.all_bitboards[
+                7
+            ] and not self.is_edge(square, square + 9):
                 # Handle promotion
                 if (square + 9) // 8 == 7:
                     move_list.extend(
@@ -331,33 +325,33 @@ class ChessBoard:
 
         return move_list
 
-    def generatePieceMoves(self, square: int) -> list:
+    def generate_piece_moves(self, square: int) -> list:
         move_list = []
         piece = self.determine_piece_on_square(square)
 
         match piece:
             case "K":
-                move_list.extend(self.generateKingMoves(square))
+                move_list.extend(self.generate_king_moves(square))
             case "Q":
-                move_list.extend(self.generateOrthogonalMoves(square))
-                move_list.extend(self.generateDiagonalMoves(square))
+                move_list.extend(self.generate_orthogonal_moves(square))
+                move_list.extend(self.generate_diagonal_moves(square))
             case "R":
-                move_list = self.generateOrthogonalMoves(square)
+                move_list = self.generate_orthogonal_moves(square)
             case "B":
-                move_list = self.generateDiagonalMoves(square)
+                move_list = self.generate_diagonal_moves(square)
             case "N":
-                move_list = self.generateKnightMoves(square)
+                move_list = self.generate_knight_moves(square)
             case "P":
-                move_list = self.generatePawnMoves(square)
+                move_list = self.generate_pawn_moves(square)
 
         return move_list
 
-    def generateAllLegalMoves(self):
+    def generate_legal_moves(self):
         all_moves = []
 
         for square in range(64):
             if np.uint64(1 << square) & self.all_bitboards[6]:
-                all_moves.extend(self.generatePieceMoves(square))
+                all_moves.extend(self.generate_piece_moves(square))
 
         return all_moves
 
@@ -388,23 +382,6 @@ class ChessBoard:
         white = self.all_bitboards[6].copy()
         self.all_bitboards[6] = self.all_bitboards[7].copy()
         self.all_bitboards[7] = white.copy()
-
-    def evaluate(self) -> float:  # TODO implement more complex evaluation
-        evaluation = 0.0
-
-        for square in range(64):
-            piece = self.determine_piece_on_square(square)
-
-            if piece == None:
-                continue
-
-            if np.uint64(1 << square) & self.all_bitboards[6]:
-                evaluation += self.pieceValue[piece]
-
-            if np.uint64(1 << square) & self.all_bitboards[7]:
-                evaluation += self.pieceValue[piece]
-
-        return evaluation
 
     def display_board(self):
         fen = bitboards_to_fen(self.all_bitboards[:10])
