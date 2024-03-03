@@ -41,10 +41,10 @@ class EvaluationFunction:
             piece = piece.upper()
 
             if np.uint64(1 << square) & board.all_bitboards[6]:
-                eval += board.pieceValue[piece]
+                eval += self.piece_values[piece]
 
             else:
-                eval -= board.pieceValue[piece]
+                eval -= self.piece_values[piece]
 
         return eval
 
