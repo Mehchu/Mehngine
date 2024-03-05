@@ -13,6 +13,8 @@ def decompose_notation(notation):
         end_square = decode_square(notation[2:4])
     except ValueError:
         raise InvalidNotation(notation)
+    except IndexError:
+        raise InvalidNotation(notation)
     try:
         promotion_piece = notation[4]
     except IndexError:

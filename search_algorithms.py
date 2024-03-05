@@ -140,7 +140,13 @@ def negamax_alpha_beta_top(board, depth, alpha, beta, color):
         board.all_bitboards
     )  # Generate a unique key for the current position
 
-    if depth == 0 or board.is_game_over():
+    if depth == 0:
+        if board.is_game_over()[0]:
+            print("White won" if board.is_game_over()[1] > 0 else "Black won")
+        return None, color * eval.evaluate(board)
+
+    if board.is_game_over()[0]:
+        print("White won" if board.is_game_over()[1] > 0 else "Black won")
         return None, color * eval.evaluate(board)
 
     best_move = None
@@ -148,7 +154,7 @@ def negamax_alpha_beta_top(board, depth, alpha, beta, color):
 
     for move in board.generate_legal_moves():
         board.make_move(move)
-        score = -negamax_alpha_beta(board, depth - 1, -beta, -alpha, -color)
+        score = -negamax_alpha_beta(board, depth - 1, -beta, -alpha, color)
         board.undo_move()
 
         if score > best_score:
@@ -174,14 +180,14 @@ def negamax_alpha_beta(board, depth, alpha, beta, color):
     ):
         return transposition_table.table[key]["score"]
 
-    if depth == 0 or board.is_game_over():
+    if depth == 0 or board.is_game_over()[0]:
         return color * eval.evaluate(board)
 
     best_score = -float("inf")
 
     for move in board.generate_legal_moves():
         board.make_move(move)
-        score = -negamax_alpha_beta(board, depth - 1, -beta, -alpha, -color)
+        score = -negamax_alpha_beta(board, depth - 1, -beta, -alpha, color)
         board.undo_move()
 
         best_score = max(best_score, score)

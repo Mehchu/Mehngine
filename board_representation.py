@@ -59,15 +59,19 @@ class ChessBoard:
         self.previous_positions = [self.all_bitboards.copy()]  # TODO: make better
 
     def is_game_over(self):
+        if len(self.generate_legal_moves()) == 0:  # Stalemate
+            return True, 0
+
         if (
-            len(self.generate_legal_moves()) == 0  # Stalemate
-            or self.all_bitboards[5] & self.all_bitboards[6]
-            == 0  # White king has been captured
-            or self.all_bitboards[5] & self.all_bitboards[7]
-            == 0  # Black king has been captured
-        ):
-            return True
-        return False
+            not self.all_bitboards[5] & self.all_bitboards[6]
+        ):  # White king has been captured
+            return True, 999
+
+        if (
+            not self.all_bitboards[5] & self.all_bitboards[7]
+        ):  # Black king has been captured
+            return True, -999
+        return False, 0
 
     def knight_moved_over_edge(self, start_square, dest_square):
 
@@ -103,7 +107,13 @@ class ChessBoard:
         try:
             start_mask = np.uint64(~(1 << start_square))
             end_mask = np.uint64(~(1 << end_square))
-        except OverflowError:
+        except OverflowError:  # TODO: What causes this?
+            self.all_bitboards[9] = 0
+            self.update_occupancy_mask()
+            
+            self.flip_board()
+            self.white_to_move = not self.white_to_move
+
             return
 
         # Delete the piece, if any, on the end square
@@ -147,72 +157,63 @@ class ChessBoard:
         self.previous_positions.pop()
 
     def determine_piece_on_square(self, square):
-        piece = None
-
-        for index, bitboard in enumerate(self.all_bitboards[:6]):
-            if bitboard & np.uint64(1 << square):
+        for index in range(6):
+            if self.all_bitboards[index] & np.uint64(1 << square):
                 piece = PieceType(index).name
-
-                if np.uint64(self.all_bitboards[7]) & np.uint64(1 << square):
-                    return piece.lower()
-
-        return piece
+                return (
+                    piece.lower()
+                    if self.all_bitboards[7] & np.uint64(1 << square)
+                    else piece
+                )
+        return None
 
     def update_occupancy_mask(self):
-        self.all_bitboards[10] = (
-            self.all_bitboards[6].copy() | self.all_bitboards[7].copy()
-        )
+        self.all_bitboards[10] = self.all_bitboards[6] | self.all_bitboards[7]
 
     def generate_orthogonal_moves(self, square):
         move_list = []
 
-        offsets = [-8, 8, -1, 1]
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # left, right, up, down
 
-        # Moves up
-        for offset in offsets:
-            new_square = square
+        for dx, dy in directions:
+            new_square = square + dx + 8 * dy
 
-            for _ in range(8):
-                new_square += offset
-
-                if not isOnBoard(new_square) or (
-                    new_square // 8 != square // 8 and new_square % 8 != square % 8
+            while isOnBoard(new_square):
+                if (
+                    abs(new_square % 8 - square % 8) > 0
+                    and abs(new_square // 8 - square // 8) > 0
                 ):
-                    break
+                    break  # Move crosses board edge
 
                 if np.uint64(1 << new_square) & self.all_bitboards[10]:
-                    if (
-                        np.uint64(1 << new_square) & self.all_bitboards[7]
-                    ):  # If a piece can be captured on the end square
+                    if np.uint64(1 << new_square) & self.all_bitboards[7]:
                         move_list.insert(
                             0, f"{encode_square(square)}{encode_square(new_square)}"
                         )
                     break
 
                 move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
+
+                new_square += dx + 8 * dy
 
         return move_list
 
     def generate_diagonal_moves(self, square):
         move_list = []
 
-        offsets = [-9, 9, -7, 7]
+        directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]  # NW, NE, SW, SE
 
-        for offset in offsets:
-            new_square = square
+        for dx, dy in directions:
+            new_square = square + dx + 8 * dy
 
-            for _ in range(8):
-                new_square += offset
-
-                if not isOnBoard(new_square) or abs(
-                    (new_square // 8 - square // 8)
-                ) != abs(new_square % 8 - square % 8):
-                    break
+            while isOnBoard(new_square):
+                if abs(new_square % 8 - square % 8) != abs(
+                    new_square // 8 - square // 8
+                ):
+                    break  # Move is not diagonal
 
                 if np.uint64(1 << new_square) & self.all_bitboards[10]:
-                    if (
-                        np.uint64(1 << new_square) & self.all_bitboards[7]
-                    ):  # Capture piece
+                    if np.uint64(1 << new_square) & self.all_bitboards[7]:
                         move_list.insert(
                             0, f"{encode_square(square)}{encode_square(new_square)}"
                         )
@@ -220,23 +221,39 @@ class ChessBoard:
 
                 move_list.append(f"{encode_square(square)}{encode_square(new_square)}")
 
+                new_square += dx + 8 * dy
+
         return move_list
 
     def generate_knight_moves(self, square):
-        offsets = [-17, -15, -10, -6, 6, 10, 15, 17]
+        move_list = []
 
-        return [
-            f"{encode_square(square)}{encode_square(square + offset)}"
-            for offset in offsets
-            if (
-                isOnBoard(square + offset)
-                and not np.uint64(1 << (square + offset)) & self.all_bitboards[6]
-                and not self.knight_moved_over_edge(square, square + offset)
-            )
+        # Unroll the a for loop for all possible knight moves for no loop overhead
+        new_squares = [
+            square - 17,
+            square - 15,
+            square - 10,
+            square - 6,
+            square + 6,
+            square + 10,
+            square + 15,
+            square + 17,
         ]
 
+        for new_square in new_squares:
+            if (
+                isOnBoard(new_square)
+                and not np.uint64(1 << new_square) & self.all_bitboards[6]
+            ):
+                if not self.knight_moved_over_edge(square, new_square):
+                    move_list.append(
+                        f"{encode_square(square)}{encode_square(new_square)}"
+                    )
+
+        return move_list
+
     def generate_king_moves(self, square):
-        offsets = [1, -1, -8, -8, 9, -9, 7, -7]
+        offsets = [1, -1, -8, 8, 9, -9, 7, -7]
 
         return [
             f"{encode_square(square)}{encode_square(square + offset)}"

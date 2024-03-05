@@ -10,16 +10,16 @@ class EvaluationFunction:
         eval = 0
 
         # Material evaluation
-        eval += 0.9 * self.evaluate_material(board)
+        eval += 0.911 * self.evaluate_material(board)
 
         # Mobility evaluation
-        eval += 0.5 * self.evaluate_mobility(board)
+        eval += 0.420 * self.evaluate_mobility(board)
 
         # Pawn structure evaluation
         eval += 0.3 * self.evaluate_pawn_structure(board)
 
         # King safety evaluation
-        eval += 0.3 * self.evaluate_king_safety(board)
+        eval += 0.69 * self.evaluate_king_safety(board)
 
         # Piece development evaluation
         eval += 0.3 * self.evaluate_piece_development(board)
@@ -83,7 +83,7 @@ class EvaluationFunction:
         black_open_lines.extend(board.generate_orthogonal_moves(black_king_square))
         black_open_lines.extend(board.generate_diagonal_moves(black_king_square))
 
-        return len(black_open_lines) - len(white_open_lines)
+        return len(white_open_lines) - len(black_open_lines)
 
     def evaluate_piece_development(self, board) -> float:
         # Evaluate piece development (e.g., pieces developed vs. undeveloped)
