@@ -29,7 +29,7 @@ def main():
 
 
 def playGame(board: ChessBoard):
-    depth = 2  # Chooses the depth that the program will run at
+    depth = 4  # Chooses the depth that the program will run at
 
     board.display_board()
 
