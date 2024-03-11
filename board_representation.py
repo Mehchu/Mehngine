@@ -177,14 +177,15 @@ class ChessBoard:
         self.previous_positions.pop()
 
     def determine_piece_on_square(self, square):
-        for index in range(6):
-            if self.all_bitboards[index] & np.uint64(1 << square):
-                piece = PieceType(index).name
-                return (
-                    piece.lower()
-                    if self.all_bitboards[7] & np.uint64(1 << square)
-                    else piece
-                )
+        if self.all_bitboards[10] & np.uint64(1 << square):
+            for index in range(6):
+                if self.all_bitboards[index] & np.uint64(1 << square):
+                    piece = PieceType(index).name
+                    return (
+                        piece.lower()
+                        if self.all_bitboards[7] & np.uint64(1 << square)
+                        else piece
+                    )
         return None
 
     def update_occupancy_mask(self):
