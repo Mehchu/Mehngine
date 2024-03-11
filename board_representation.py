@@ -30,6 +30,7 @@ class GameOver(Exception):
 class ChessBoard:
     def __init__(self, fen) -> None:
         self.white_to_move = True
+        self.legal_moves = None
         # Convert the inputted fen to an array of binary integers
         temporary_bitboards = fen_to_bitboards(fen)
 
@@ -58,6 +59,8 @@ class ChessBoard:
 
         self.previous_positions = [self.all_bitboards.copy()]  # TODO: make better
 
+        self.legal_moves = self.generate_legal_moves()
+
     def is_game_over(self):
         if len(self.generate_legal_moves()) == 0:  # Stalemate
             return True, 0
@@ -83,38 +86,54 @@ class ChessBoard:
 
         # Check if the move crosses an edge in any direction
         return (
-            abs(dest_file - start_file) > 2
-            or abs(dest_rank - start_rank)  # Check file difference
-            > 2  # Check rank difference
+            abs(dest_file - start_file) > 2  # Check file difference
+            or abs(dest_rank - start_rank) > 2  # Check rank difference
         )
 
     def make_move(self, long_algebraic_notation):  # TODO: Update misc bitboards
-        if long_algebraic_notation == None:
-            raise GameOver(False)
+        if (
+            long_algebraic_notation == None
+        ):  # Engine can only make a None type move if it has lost the game
+            raise GameOver(False)  # Flag that the game is over, and the player has won
 
-        self.previous_positions.append(self.all_bitboards.copy())  # TODO: make better
+        self.previous_positions.append(
+            self.all_bitboards.copy()
+        )  # Store the current position so that the move can later be undone TODO: only store the bitboards which have actually changed to save memory
 
         start_square, end_square, promotion_piece = decompose_notation(
             long_algebraic_notation
-        )
+        )  # Breaks down the notation into usable chunks
 
-        piece = self.determine_piece_on_square(start_square)
+        piece = self.determine_piece_on_square(
+            start_square
+        )  # Determine the piece which is being moved
 
-        if piece is None:
+        if (
+            piece is None
+        ):  # Should never be triggered, given only legal moves are being made
             return
 
         # Creates masks to turn off a specified bit
         try:
-            start_mask = np.uint64(~(1 << start_square))
-            end_mask = np.uint64(~(1 << end_square))
-        except OverflowError:  # TODO: What causes this?
-            self.all_bitboards[9] = 0
-            self.update_occupancy_mask()
-            
-            self.flip_board()
-            self.white_to_move = not self.white_to_move
-
-            return
+            start_mask = np.uint64(
+                ~(1 << start_square)
+            )  # Creates a mask to quickly wipe a square from every bitboard
+        except OverflowError:  # Catches out of bounds problem for moving to h8
+            if end_square == 63:
+                end_mask = np.uint64(0xFFFFFFFFFFFFFFFE)
+            if end_square == 0:
+                end_mask = np.uint64(0xEFFFFFFFFFFFFFFF)
+            print("1", long_algebraic_notation)
+        try:
+            end_mask = np.uint64(
+                ~(1 << end_square)
+            )  # Creates a mask to quickly wipe a square from every bitboard
+        except OverflowError:
+            if end_square == 63:
+                end_mask = np.uint64(0xFFFFFFFFFFFFFFFE)
+            if end_square == 0:
+                end_mask = np.uint64(0xEFFFFFFFFFFFFFFF)
+            print("2", long_algebraic_notation)
 
         # Delete the piece, if any, on the end square
         for index in range(8):
@@ -142,13 +161,14 @@ class ChessBoard:
             self.all_bitboards[7] &= start_mask
             self.all_bitboards[7] |= np.uint64(1 << end_square)
 
-        # Update misc
+        # Update misc bitboards
         self.all_bitboards[9] = 0
         self.update_occupancy_mask()
 
         if piece.upper() == "P" and abs(end_square // 8 - start_square // 8) == 2:
             self.all_bitboards[9] = end_square
 
+        # Make it the other colour's move to make
         self.flip_board()
         self.white_to_move = not self.white_to_move
 
@@ -333,7 +353,9 @@ class ChessBoard:
             print("Probably fix this")
 
         # Handle en passant
-        if square // 8 == self.all_bitboards[9] // 8 and (
+        if square // 8 == self.all_bitboards[
+            9
+        ] // 8 and (  # TODO: En passant not added to list of legal moves
             np.uint64(1 << square - 1) & (np.uint64(1) << self.all_bitboards[9])
             or np.uint64(1 << square + 1) & (np.uint64(1) << self.all_bitboards[9])
         ):
