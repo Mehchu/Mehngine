@@ -11,6 +11,8 @@ from fen_handling import InvalidFEN  # Importing InvalidFEN exception
 from search_algorithms import *  # Importing search algorithms
 from evaluation_functions import *  # Importing evaluation functions
 
+import numpy as np
+
 STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"  # Default starting chess position
 TEST_FEN = "k5q1/8/8/8/8/8/8/K4Q2 w - - 0 1"
 
