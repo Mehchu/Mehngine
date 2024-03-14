@@ -211,11 +211,14 @@ def negamax_alpha_beta(
         return transposition_table.table[key][
             "score"
         ]  # Return the previously computed evaluation for the position
+        
+    if board.is_game_over()[0]:
+        return board.is_game_over()[1]
 
-    if (
-        depth == 0 or board.is_game_over()[0]
-    ):  # If no more searching for this branch is needed
+    if depth == 0:  # If no more searching for this branch is needed
         return color * eval.evaluate(board)
+    
+    
 
     best_score = -float("inf")  # Initialise the starting score for this search branch
 
