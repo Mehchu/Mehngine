@@ -33,7 +33,7 @@ def main():
             )  # Creating a ChessBoard object with the specified FEN
             break
         except InvalidFEN as e:
-            print(f"{e.fen} is an invalid FEN, try again")
+            print(f"{e.message}, try again")
 
     playGame(board)
 
@@ -43,7 +43,7 @@ def playGame(board: ChessBoard):
     """
     Function to play the chess game.
     """
-    depth = 6  # Chooses the depth that the program will run at
+    depth = 4  # Chooses the depth that the program will run at
 
     board.display_board()  # Displaying the initial chess board
 

@@ -465,17 +465,17 @@ class EvaluationFunction:
         # Material evaluation
         eval += 1.0 * self.evaluate_material(board)
 
-        """# Mobility evaluation
-        eval += 10 * self.evaluate_mobility(board)
-
-        # Pawn structure evaluation
+        '''# Pawn structure evaluation
         eval += 0.3 * self.evaluate_pawn_structure(board)
 
         # King safety evaluation
         eval += 10 * self.evaluate_king_safety(board)
 
         # Piece development evaluation
-        eval += 0.3 * self.evaluate_piece_development(board)"""
+        eval += 0.3 * self.evaluate_piece_development(board)
+        
+        # Mobility evaluation
+        eval += 10 * self.evaluate_mobility(board)'''
 
         return eval
 
@@ -513,6 +513,7 @@ class EvaluationFunction:
         black_mobility = len(
             board.legal_moves
         )  # Determines how many legal moves black has
+        
 
         return white_mobility - black_mobility  # Returns the difference between them
 

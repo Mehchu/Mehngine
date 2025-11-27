@@ -167,7 +167,7 @@ def negamax_alpha_beta_top(
     best_score = -float("inf")
 
     # Loop through all the legal moves in the current position
-    for move in board.generate_legal_moves():
+    for move in board.legal_moves:
         board.make_move(move)  # Make the current iterated move
         score = -negamax_alpha_beta(
             board, depth - 1, -beta, -alpha, color
@@ -223,7 +223,8 @@ def negamax_alpha_beta(
     best_score = -float("inf")  # Initialise the starting score for this search branch
 
     # Search through each legal move in the position
-    for move in board.generate_legal_moves():
+    board.generate_legal_moves()
+    for move in board.legal_moves:
         board.make_move(move)  # Make the move to be searched through
         score = -negamax_alpha_beta(
             board, depth - 1, -beta, -alpha, color

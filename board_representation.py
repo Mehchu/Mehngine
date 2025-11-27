@@ -62,7 +62,7 @@ class ChessBoard:
         self.legal_moves = self.generate_legal_moves()
 
     def is_game_over(self):
-        if len(self.generate_legal_moves()) == 0:  # Stalemate
+        if len(self.legal_moves) == 0:  # Stalemate
             return True, 0
 
         if (
@@ -116,7 +116,7 @@ class ChessBoard:
         # Creates masks to turn off a specified bit
         try:
             start_mask = np.uint64(
-                ~(1 << start_square)
+                ~(1 << start_square) % (1 << 64)
             )  # Creates a mask to quickly wipe a square from every bitboard
         except OverflowError:  # Catches out of bounds problem for moving to h8
             if start_square == 63:
@@ -125,7 +125,7 @@ class ChessBoard:
                 start_mask = np.uint64(0xEFFFFFFFFFFFFFFF)
         try:
             end_mask = np.uint64(
-                ~(1 << end_square)
+                ~(1 << end_square) % (1 << 64)
             )  # Creates a mask to quickly wipe a square from every bitboard
         except OverflowError:
             if end_square == 63:
@@ -364,27 +364,6 @@ class ChessBoard:
 
         return move_list
 
-    def generate_piece_moves(self, square: int) -> list:
-        move_list = np.array([])
-        piece = self.determine_piece_on_square(square)
-
-        match piece:
-            case "K":
-                move_list.extend(self.generate_king_moves(square))
-            case "Q":
-                move_list.extend(self.generate_orthogonal_moves(square))
-                move_list.extend(self.generate_diagonal_moves(square))
-            case "R":
-                move_list = self.generate_orthogonal_moves(square)
-            case "B":
-                move_list = self.generate_diagonal_moves(square)
-            case "N":
-                move_list = self.generate_knight_moves(square)
-            case "P":
-                move_list = self.generate_pawn_moves(square)
-
-        return move_list[::-1]
-
     def generate_legal_moves(self):
         move_list = []
 
@@ -406,8 +385,10 @@ class ChessBoard:
                         move_list.extend(self.generate_knight_moves(square))
                     case "P":
                         move_list.extend(self.generate_pawn_moves(square))
+                        
+        self.legal_moves = np.array(move_list).flatten()
 
-        return np.array(move_list).flatten()
+        return self.legal_moves
 
     def flip_bitboard(
         self, bitboard
