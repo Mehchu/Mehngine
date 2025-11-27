@@ -68,12 +68,12 @@ class ChessBoard:
         if (
             not self.all_bitboards[5] & self.all_bitboards[6]
         ):  # White king has been captured
-            return True, 999
+            return True, 99999
 
         if (
             not self.all_bitboards[5] & self.all_bitboards[7]
         ):  # Black king has been captured
-            return True, -999
+            return True, -99999
         return False, 0
 
     def knight_moved_over_edge(self, start_square, dest_square):
@@ -119,11 +119,10 @@ class ChessBoard:
                 ~(1 << start_square)
             )  # Creates a mask to quickly wipe a square from every bitboard
         except OverflowError:  # Catches out of bounds problem for moving to h8
-            if end_square == 63:
-                end_mask = np.uint64(0xFFFFFFFFFFFFFFFE)
-            if end_square == 0:
-                end_mask = np.uint64(0xEFFFFFFFFFFFFFFF)
-            print("1", long_algebraic_notation)
+            if start_square == 63:
+                start_mask = np.uint64(0xFFFFFFFFFFFFFFFE)
+            if start_square == 0:
+                start_mask = np.uint64(0xEFFFFFFFFFFFFFFF)
         try:
             end_mask = np.uint64(
                 ~(1 << end_square)
@@ -133,7 +132,6 @@ class ChessBoard:
                 end_mask = np.uint64(0xFFFFFFFFFFFFFFFE)
             if end_square == 0:
                 end_mask = np.uint64(0xEFFFFFFFFFFFFFFF)
-            print("2", long_algebraic_notation)
 
         # Delete the piece, if any, on the end square
         for index in range(8):
@@ -385,7 +383,7 @@ class ChessBoard:
             case "P":
                 move_list = self.generate_pawn_moves(square)
 
-        return move_list
+        return move_list[::-1]
 
     def generate_legal_moves(self):
         move_list = []

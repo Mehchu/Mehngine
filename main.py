@@ -43,7 +43,7 @@ def playGame(board: ChessBoard):
     """
     Function to play the chess game.
     """
-    depth = 4  # Chooses the depth that the program will run at
+    depth = 6  # Chooses the depth that the program will run at
 
     board.display_board()  # Displaying the initial chess board
 

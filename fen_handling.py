@@ -1,9 +1,11 @@
 import numpy as np
 
 
+# Creates an exception for when an invalid FEN is detected
 class InvalidFEN(Exception):
     def __init__(self, fen):
-        self.fen = fen
+        self.message = f'"{fen}" is an invalid FEN'
+        super().__init__(self.message)
 
 
 def fen_to_bitboards(fen):
@@ -69,7 +71,7 @@ def fen_to_bitboards(fen):
                 np.uint64(castling_rights),
                 np.uint64(en_passant_square),
             ]
-        )
+        )  # Appends the remaining bitboards to the array of all bitboards
         return bitboards
     except:
         raise InvalidFEN(fen)
@@ -91,7 +93,7 @@ def bitboards_to_fen(bitboards):
         black_pieces_board,
         castling_rights,
         en_passant_target,
-    ) = bitboards
+    ) = bitboards  # Assigns each bitboard to a variable with a more aptly suited name
 
     # Convert bitboards to FEN piece placement
     piece_placement = ""
@@ -112,7 +114,9 @@ def bitboards_to_fen(bitboards):
                             king_board,
                         ]
                     )
-                    if (piece_board & np.uint64(1) << np.uint64(square))
+                    if (
+                        piece_board & np.uint64(1) << np.uint64(square)
+                    )  # If there is a piece on the square in the bitboard that is being searched, assign that piece to piece
                 ),
                 None,
             )
@@ -122,9 +126,11 @@ def bitboards_to_fen(bitboards):
                     piece_placement += str(empty_count)
                     empty_count = 0
 
-                if white_pieces_board & np.uint64(1) << np.uint64(square):
+                if white_pieces_board & np.uint64(1) << np.uint64(
+                    square
+                ):  # If the piece is a white piece, then add the uppercase version of the character
                     piece_placement += piece.upper()
-                else:
+                else:  # If not white, then it must be black so add the lowercase character
                     piece_placement += piece
             else:
                 # Empty square, increase empty count
@@ -143,13 +149,13 @@ def bitboards_to_fen(bitboards):
 
     # Determine castling rights in FEN
     castling_fen = ""
-    if castling_rights & np.uint64(0b1000):
+    if castling_rights & np.uint64(0b1000):  # Determines if white can castle kingside
         castling_fen += "K"
-    if castling_rights & np.uint64(0b0100):
+    if castling_rights & np.uint64(0b0100):  # Determines if white can castle queenside
         castling_fen += "Q"
-    if castling_rights & np.uint64(0b0010):
+    if castling_rights & np.uint64(0b0010):  # Determines if black can castle kingside
         castling_fen += "k"
-    if castling_rights & np.uint64(0b0001):
+    if castling_rights & np.uint64(0b0001):  # Determines if black can castle queenside
         castling_fen += "q"
 
     # Determine en passant target square in FEN
@@ -163,6 +169,7 @@ def bitboards_to_fen(bitboards):
 
 
 def display_chess_position(fen):
+
     # Create a mapping for piece characters
     piece_mapping = {
         "r": "♜",
@@ -182,14 +189,29 @@ def display_chess_position(fen):
 
     # Parse FEN string
     rows = fen.split()[0].split("/")
+
+    if len(rows) != 8:  # Detects if a board with an invalid number of rows is entered
+        raise InvalidFEN(fen)
+
     display_str = ""
-    for row in rows:
-        display_row = []
-        for char in row:
-            if char.isdigit():
-                display_row.extend(["·"] * int(char))
-            else:
-                display_row.append(piece_mapping[char])
-        display_str += " ".join(display_row) + "\n"
+    for row in rows:  # Converts each row into a printable string
+        display_row = []  # Starts with an empty row
+        for char in row:  # Loops through each different piece in the row
+            if char.isdigit():  # Detects how many empty squares appear in a row
+                display_row.extend(
+                    ["·"] * int(char)
+                )  # Adds on the required amount of empty squares
+            else:  # If it is not an empty square
+                try:
+                    display_row.append(
+                        piece_mapping[char]
+                    )  # Add on the corresponding piece
+                except (
+                    KeyError
+                ):  # If the current character is not in the dictionary for symbols, then the FEN is invalid so raise that exception
+                    raise InvalidFEN(fen)
+        display_str += (
+            " ".join(display_row) + "\n"
+        )  # Join the converted row to the output string
 
     return display_str
